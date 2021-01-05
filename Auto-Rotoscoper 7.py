@@ -8,12 +8,14 @@ from lxml import etree as ET
 import re
 import math
 from ctypes import windll
+
 np.set_printoptions(threshold=sys.maxsize)
 colourOnRelease = False
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
-#import squareTrace
 
+
+# import squareTrace
 
 
 def img2ContoursSingle(filepath, threshvalue):
@@ -26,23 +28,24 @@ def img2ContoursSingle(filepath, threshvalue):
     im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     return contours
 
-def img2ContoursMult(filepath,options):
+
+def img2ContoursMult(filepath, options):
     steps = options[0]
     offsetL = options[1]
     offsetH = options[2]
     img = cv2.imread(filepath)
     img = cv2.fastNlMeansDenoising(img, None, 8, 21, 7)
     contours = []
-    step = (255 - offsetL-offsetH) / steps
+    step = (255 - offsetL - offsetH) / steps
     for i in range(steps):
-        offH = offsetL+offsetH if i==steps-1 else offsetL
-        offL = offsetL if i!=0 else 0
+        offH = offsetL + offsetH if i == steps - 1 else offsetL
+        offL = offsetL if i != 0 else 0
         im = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        print(i*step+offL)
-        im[(im > (i+1)*step+offH) | (im < i*step+offL)] = 0
-        im[(im >= i*step+offL) & (im <= (i+1)*step+offH)] = 255
+        print(i * step + offL)
+        im[(im > (i + 1) * step + offH) | (im < i * step + offL)] = 0
+        im[(im >= i * step + offL) & (im <= (i + 1) * step + offH)] = 255
         thresh = cv2.morphologyEx(im, cv2.MORPH_OPEN, kernel)
-        thresh = cv2.rectangle(thresh, (1, 1), (int(vidW) - 1, int(vidH) - 1),0,2)
+        thresh = cv2.rectangle(thresh, (1, 1), (int(vidW) - 1, int(vidH) - 1), 0, 2)
         im2, subContours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         contours.extend(subContours)
         """im2 = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
@@ -50,15 +53,16 @@ def img2ContoursMult(filepath,options):
         cv2.imshow("image", im2)
         cv2.waitKey(0)"""
 
-    return sorted(contours, key=cv2.contourArea,reverse=True)
+    return sorted(contours, key=cv2.contourArea, reverse=True)
 
-def cntWrite(isMult,filepath, newContours):
+
+def cntWrite(isMult, filepath, newContours):
     root = ET.Element("svg", width=str(vidW), height=str(vidH), xmlns="http://www.w3.org/2000/svg", stroke="black")
     if isMult:
         path = "M3 3,  3 717,1277  717,1277    3,4 3"
         ET.SubElement(root, "path", style="fill:#ffffff", d=path)
     for i, cnt in enumerate(newContours):
-        #epsilon = 0.02*cv2.arcLength(cnt,True)
+        # epsilon = 0.02*cv2.arcLength(cnt,True)
         approx = cv2.approxPolyDP(cnt, 0.6, False)
         listCnt = np.vstack(approx).squeeze()
         if len(approx) < 4 or (cv2.contourArea(approx) > vidW * vidH * 0.9 and isMult):
@@ -140,21 +144,19 @@ def convertVideo(popup=None):
         eFrame = int(popup[1].get())
         popup[2].destroy()
 
-
-    for count in range(sFrame, eFrame+1):
+    for count in range(sFrame, eFrame + 1):
         vidCap.set(cv2.CAP_PROP_POS_MSEC, count * 67)
         success, frame = vidCap.read()
         filepathBMP = folderName + "/frame%d.bmp" % count
         filepathXML = folderName + "/frame%d.svg" % count
         if not popup:
             cv2.imwrite(filepathBMP, frame)
-        if scanType=="single":
-            contours = img2ContoursSingle(filepathBMP,scanOption)
+        if scanType == "single":
+            contours = img2ContoursSingle(filepathBMP, scanOption)
             cntWrite(False, filepathXML, contours)
         else:
-            contours = img2ContoursMult(filepathBMP,scanOption)
+            contours = img2ContoursMult(filepathBMP, scanOption)
             cntWrite(True, filepathXML, contours)
-
 
 
 def readContours(frame, drawContours):
@@ -297,7 +299,7 @@ def mouseUp(event, index, identifier, isCurrent):
         cPoint[0][1] = 3
         canvas.tag_unbind(identifier, "<ButtonRelease-1>")
         if colourOnRelease:
-            colourFrames(sFrame,frame)
+            colourFrames(sFrame, frame)
         showImage()
         mouseMoved = False
     elif mouseMoved and isCurrent:  # The point has been moved and it's position needs to be modified in the list.
@@ -381,8 +383,8 @@ def autoKeyFrame(index, eFrame=None):
             dist = math.sqrt((c[0] - cOld[0]) ** 2 + (c[1] - cOld[1]) ** 2)
             sim = cv2.matchShapes(oldCnt, cnt[0], 1, 0.0)
 
-            prob = sim/3 + aRatio / 1.7 + dist / 90
-            print(sim/3,aRatio/1.7,dist/90, prob)
+            prob = sim / 3 + aRatio / 1.7 + dist / 90
+            print(sim / 3, aRatio / 1.7, dist / 90, prob)
             if prob < bestProb2 and prob > bestProb:
                 bestProb2 = prob
 
@@ -390,8 +392,8 @@ def autoKeyFrame(index, eFrame=None):
                 bestProb = prob
                 bestCnt = cnt[0]
                 cntIndex = i
-        print("bestProb:",bestProb," BestProb2:",bestProb2)
-        if eFrame is None and (bestProb > 3.4 or bestProb2<bestProb*1.3):
+        print("bestProb:", bestProb, " BestProb2:", bestProb2)
+        if eFrame is None and (bestProb > 3.4 or bestProb2 < bestProb * 1.3):
             return f
         print(" ")
 
@@ -429,7 +431,7 @@ def contextMenu(event, index, type):
         popup.add_command(label="Set static end point", command=lambda index=index: addEndPoint(index))
         popup.add_command(label="Auto Keyframe",
                           command=lambda index=index, endFrame=frame: autoKeyFrame(index, endFrame))
-    if type == (2,1):
+    if type == (2, 1):
         popup.add_command(label="Set to endpoint", command=lambda index=index: changeEndPoint(index))
     popup.post(event.x_root, event.y_root)
 
@@ -495,7 +497,7 @@ def modColour(point, index, identifier):
     global contours
     cntIndex = closestCnt(point)
     oldColour = cPoints[index][1]
-    colour = askcolor(oldColour, parent = dialogRoot)[1]
+    colour = askcolor(oldColour, parent=dialogRoot)[1]
     root.focus_set()
     if colour != None:
         if currentTool == "cPoint" or currentTool == "cPointStatic":
@@ -514,7 +516,7 @@ def canvasRelease(event):
         scaledPt = (point[0] / scale, point[1] / scale)
         cntIndex = closestCnt(scaledPt)
         oldColour = contours[cntIndex][1]
-        colour = askcolor(oldColour, parent = dialogRoot)[1]
+        colour = askcolor(oldColour, parent=dialogRoot)[1]
         root.focus_set()
         if colour:
             if not mouseMoved:  # adding new colour point
@@ -531,8 +533,8 @@ def canvasRelease(event):
                     createShape(colour, point, [len(cPoints) - 1, 0], (1, 1))
                 elif currentTool == "cPointAuto":
                     cPoints.append([[3, 1], colour, [scaledPt], [frame]])
-                    endFrame = autoKeyFrame(len(cPoints)-1)
-                    colourFrames(frame,endFrame-1)
+                    endFrame = autoKeyFrame(len(cPoints) - 1)
+                    colourFrames(frame, endFrame - 1)
 
                 elif currentTool == "fill":
                     f = frame
@@ -604,10 +606,11 @@ def addEndPoint(index):
     cPoints[index][0][1] = 2
     showImage()
 
+
 def changeEndPoint(index):
     global cPoints
-    pIndex = cPoints[index][-1].index(frame)+1
-    cPoints[index][2]=cPoints[index][2][:pIndex]
+    pIndex = cPoints[index][-1].index(frame) + 1
+    cPoints[index][2] = cPoints[index][2][:pIndex]
     cPoints[index][-1] = cPoints[index][-1][:pIndex]
 
 
@@ -662,19 +665,20 @@ def CF_PU_reciever(popup):
     sFrame = int(popup[0].get())
     eFrame = int(popup[1].get())
     popup[2].destroy()
-    colourFrames(sFrame,eFrame)
+    colourFrames(sFrame, eFrame)
 
 
-def colourFrames(sFrame,eFrame):
+def colourFrames(sFrame, eFrame):
     global cPoints
     global cPointsOld
 
     cPointsCopy = cPoints
     frameCPoints = [[] for _ in range(numFrames)]
-    mouthColours = ["#000000","#ffffff","#b72c1f"]
+    mouthColours = ["#000000", "#ffffff", "#b72c1f"]
     for cPoint in cPointsCopy:
         frames = cPoint[-1]
-        if sFrame <= frames[0] <= eFrame or sFrame <= frames[-1] <= eFrame or (sFrame >= frames[0] and eFrame<= frames[-1]):
+        if sFrame <= frames[0] <= eFrame or sFrame <= frames[-1] <= eFrame or (
+                sFrame >= frames[0] and eFrame <= frames[-1]):
             subType = cPoint[0][1]
             type = cPoint[0][0]
             point1 = cPoint[2][0]
@@ -712,26 +716,25 @@ def colourFrames(sFrame,eFrame):
                         x, y, w, h = cv2.boundingRect(cnt[0])
                         area = cv2.contourArea(cnt[0])
                         if point1[0] < x and point1[1] < y and point1[2] > x + w and point1[3] > y + h:
-                            mouthParts.append([cntIndex,area])
+                            mouthParts.append([cntIndex, area])
                     if len(mouthParts) == 0:
                         continue
-                    mouthParts.sort(key=lambda x:x[1],reverse=True)
+                    mouthParts.sort(key=lambda x: x[1], reverse=True)
                     if mouthParts[0][1] > largestArea:
                         largestArea = mouthParts[0][1]
 
-                    length = len(mouthParts) if len(mouthParts) <=3 else 3
+                    length = len(mouthParts) if len(mouthParts) <= 3 else 3
                     for mouthIndex in range(length):
                         cntIndex = mouthParts[mouthIndex][0]
                         colour = mouthColours[mouthIndex]
                         area = mouthParts[mouthIndex][1]
-                        #print(i,area,largestArea,mouthIndex)
-                        if mouthIndex == 0 and area<largestArea/3.5:
+                        # print(i,area,largestArea,mouthIndex)
+                        if mouthIndex == 0 and area < largestArea / 3.5:
                             colour = mouthColours[1]
 
                         if mouthIndex == 1 and length == 2:
-                            if mouthParts[0][1]>area*13 or mouthParts[0][1]<largestArea/2.5:
+                            if mouthParts[0][1] > area * 13 or mouthParts[0][1] < largestArea / 2.5:
                                 colour = mouthColours[2]
-
 
                         contours[cntIndex][1] = colour
 
@@ -791,7 +794,7 @@ def traceVideoPU():
             width=300).pack()
     start = Entry(popup, width=50)
     start.pack()
-    start.insert(0,str(frame))
+    start.insert(0, str(frame))
     end = Entry(popup, width=50)
     end.pack()
 
@@ -799,8 +802,11 @@ def traceVideoPU():
     scanType.set("single")
     elements = [start, end, popup, scanType]
 
-    Radiobutton(popup, text="Single Scan", variable=scanType, value="single", command=lambda option = "single", pu = popup, e = elements: changeTracePU(option,pu,e)).pack(anchor=W)
-    Radiobutton(popup, text="Multiple scans", variable=scanType, value="mult",command=lambda option = "mult", pu = popup, e = elements: changeTracePU(option,pu,e)).pack(anchor=W)
+    Radiobutton(popup, text="Single Scan", variable=scanType, value="single",
+                command=lambda option="single", pu=popup, e=elements: changeTracePU(option, pu, e)).pack(anchor=W)
+    Radiobutton(popup, text="Multiple scans", variable=scanType, value="mult",
+                command=lambda option="mult", pu=popup, e=elements: changeTracePU(option, pu, e)).pack(anchor=W)
+
 
 def changeTracePU(type, popup, elements):
     global traceOption, traceOptions
@@ -811,7 +817,7 @@ def changeTracePU(type, popup, elements):
     traceOptions = Frame(popup)
     traceOptions.pack()
     if type == "single":
-        Message(traceOptions, text="Min Threshold value",width=300).pack()
+        Message(traceOptions, text="Min Threshold value", width=300).pack()
         traceOption = Entry(traceOptions, width=10)
         traceOption.pack()
         traceOption.insert(0, "150")
@@ -832,8 +838,7 @@ def changeTracePU(type, popup, elements):
         traceOption3 = Entry(traceOptions, width=8)
         traceOption3.pack()
         traceOption3.insert(0, "15")
-        elements.append([traceOption,traceOption2,traceOption3])
-
+        elements.append([traceOption, traceOption2, traceOption3])
 
     Button(traceOptions, text="Trace Video", command=lambda popup=elements: convertVideo(popup)).pack()
 
@@ -879,6 +884,7 @@ def changeTool(icon):
 def onClosing():
     cPointsWrite(folderName)
     root.destroy()
+
 
 class HoverButton(Button):
 
@@ -953,7 +959,7 @@ icons = ["cPointAuto", "cPoint", "cPointStatic", "cRect", "fill", "mouth", "rect
 toolbarButts = []
 
 for icon in icons:
-    iconImg = PhotoImage(master=toolbar, file= vidfillDir + icon + ".png")
+    iconImg = PhotoImage(master=toolbar, file=vidfillDir + icon + ".png")
     button = HoverButton(toolbar, image=iconImg, activebackground='#42cef4', command=lambda icon=icon: changeTool(icon))
     toolbarButts.append(button)
     button.image = iconImg
@@ -970,11 +976,11 @@ cPointsRead()
 showImage()
 
 # create buttons
-timeline = Frame(root, takefocus = 0)
+timeline = Frame(root, takefocus=0)
 lArrowImg = PhotoImage(file=vidfillDir + "lArrow.png")
 rArrowImg = PhotoImage(file=vidfillDir + "rArrow.png")
 Button(timeline, image=lArrowImg, command=prevImage).pack(side=LEFT)
-entry = Entry(timeline, justify='center', takefocus = 0)
+entry = Entry(timeline, justify='center', takefocus=0)
 entry.bind("<Return>", goToFrame)
 entry.pack(side=LEFT, padx=10)
 Button(timeline, image=rArrowImg, command=nextImage).pack(side=LEFT)
@@ -983,8 +989,8 @@ root.bind('<Left>', lambda event: prevImage())
 root.bind('<Right>', lambda event: nextImage())
 
 dialogRoot = Toplevel()
-dialogRoot .geometry("%dx%d%+d%+d" % (50, 50, s_width/2-300, s_height/2-200))
-dialogRoot .withdraw()
+dialogRoot.geometry("%dx%d%+d%+d" % (50, 50, s_width / 2 - 300, s_height / 2 - 200))
+dialogRoot.withdraw()
 
 # start mainloop
 root.config(menu=menubar)
