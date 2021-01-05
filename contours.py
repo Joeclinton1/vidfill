@@ -13,6 +13,7 @@ class Contours:
         self.vidH = vidH
         self.folder_path = folder_path
         self.knn = load("./data/contour_matcher_knn.joblib")
+        self.max_dist = math.sqrt(self.vidH ** 2 + self.vidW ** 2)
 
     def find_visual_center(self, cnt):
         M = cv2.moments(cnt)
@@ -160,7 +161,7 @@ class Contours:
         matches = {}
         for cnt_id, cnt, _ in contours1:
             prob, match_id, match_index = self.find_closest_match_knn(cnt, contours2)
-            if prob > 0.7:
+            if prob > 0.5:
                 matches[cnt_id] = match_id
                 del contours2[match_index]
             else:
@@ -203,16 +204,16 @@ class Contours:
 
         X = []
         for _, cnt2, _ in contours:
-            ratio_area = abs(cv2.contourArea(cnt2) / cnt_area - 1)
-            dist = self.dist_between_points(cnt_center, self.center(cnt))
-            shape_sim = cv2.matchShapes(cnt, cnt2, 1, 0.0)
-            X.append([ratio_area,dist,shape_sim])
+            shape_sim = math.tanh(cv2.matchShapes(cnt, cnt2, 1, 0.0))
+            ratio_area = cv2.contourArea(cnt2) / cnt_area
+            ratio_area = math.tanh(1 / ratio_area - 1) if ratio_area < 1 else math.tanh(ratio_area - 1)
+            dist = self.dist_between_points(cnt_center, self.center(cnt2)) / (self.max_dist / 2)
+            X.append([shape_sim, ratio_area,dist])
 
         probs = self.knn.predict_proba(X)[:, 1]
         prob = max(probs)
-        cnt2_index = np.argmax(prob)
+        cnt2_index = np.argmax(probs)
         cnt2_id = contours[cnt2_index][0]
-
         return prob, cnt2_id, cnt2_index
 
     @staticmethod

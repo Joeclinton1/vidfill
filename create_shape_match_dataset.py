@@ -26,7 +26,7 @@ class MatchDataset:
             self.max_frame = max([int(a.split("\\")[-1][5:-4]) for a in svg_frames])
             self.frame = self.min_frame
 
-        self.max_area = self.vid_height*self.vid_width
+        self.max_area = self.vid_height * self.vid_width
         self.max_dist = math.sqrt(self.vid_height ** 2 + self.vid_width ** 2)
 
     def contours_read(self, frame):
@@ -50,12 +50,12 @@ class MatchDataset:
             types = str2list(c_point.get("types"))
             type = types[0]
             motion = types[1]
-            if type == 3 and motion == 3: # Only use cpoints of type = multiple and motion == 2
+            if type == 3 and motion == 3:  # Only use cpoints of type = multiple and motion == 2
                 points = []
                 for point in c_point:
                     points.append(str2list(point.text))
                 frames = str2list(c_point.get("frames"))
-                cpoints.append({"points":points, "frames":frames})
+                cpoints.append({"points": points, "frames": frames})
         return cpoints
 
     def build_dataset(self):
@@ -68,7 +68,7 @@ class MatchDataset:
         y = []
         contour_chains = {}
         for frame in range(self.min_frame, self.max_frame + 1):
-            print("frame: %s/%s"%(frame, self.max_frame))
+            print("frame: %s/%s" % (frame, self.max_frame))
             self.contours_read(frame)
             for i, cpoint in enumerate(cpoints):
                 if frame in cpoint["frames"]:
@@ -77,15 +77,16 @@ class MatchDataset:
                     if i in contour_chains:
                         prev_cnt = contour_chains[i][-1]
                         attributes = self.get_attributes(prev_cnt, self.contours, cnt_index)
-                        X.extend(attributes)
-                        y.extend([True]+[False]*(len(attributes)-1))
+                        if sum(attributes[0]) > 0.0001:
+                            X.extend(attributes)
+                            y.extend([True] + [False] * (len(attributes) - 1))
                         contour_chains[i].append(cnt)
                     else:
                         contour_chains[i] = [cnt]
 
         return X, y
 
-    def find_closest(self, point: tuple, include_edges = False):
+    def find_closest(self, point: tuple, include_edges=False):
         tempContours = []
         closest = (math.inf,)
         for i, cnt in enumerate(self.contours):
@@ -98,7 +99,7 @@ class MatchDataset:
             if dist <= closest[0]:
                 closest = (dist, (i, cnt))
         if not (tempContours and include_edges):
-            return self.find_closest(point, include_edges = True)
+            return self.find_closest(point, include_edges=True)
         else:
             return closest[1]
 
@@ -123,9 +124,9 @@ class MatchDataset:
         for i, cnt2 in enumerate(contours):
             shape_sim = math.tanh(cv2.matchShapes(cnt, cnt2, 1, 0.0))
             ratio_area = cv2.contourArea(cnt2) / cnt_area
-            ratio_area = math.tanh(1/ratio_area-1) if ratio_area<1 else math.tanh(ratio_area-1)
-            dist = dist_between_points(cnt_center, center(cnt2))/self.max_dist
-            attr = [round(x,6) for x in [shape_sim, ratio_area, dist]]
+            ratio_area = math.tanh(1 / ratio_area - 1) if ratio_area < 1 else math.tanh(ratio_area - 1)
+            dist = dist_between_points(cnt_center, center(cnt2)) / (self.max_dist / 2)
+            attr = [round(x, 6) for x in [shape_sim, ratio_area, dist]]
             if i == true_index:
                 attributes_true.append(attr)
             else:

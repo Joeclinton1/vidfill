@@ -15,7 +15,7 @@ y = shape_matches["Label"]
 
 X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X,y)
 
-knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=30)
+knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=13)
 knn.fit(X_train, y_train)
 print(knn.score(X_test, y_test))
 dump(knn, './data/contour_matcher_knn.joblib')
