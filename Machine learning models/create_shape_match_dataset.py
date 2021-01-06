@@ -148,4 +148,4 @@ if __name__ == "__main__":
         "Distance": [x[2] for x in X],
     }
     df = pd.DataFrame(data)
-    df.to_csv("./data/shape_match_data.csv")
+    df.to_csv("shape_match_data.csv")
