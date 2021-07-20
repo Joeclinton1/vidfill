@@ -1,16 +1,23 @@
 from tkinter import *
 from tkinter import messagebox
+from GUI.gui import GUIEvent
+
+
+def create_entry(frame, width=100, initial_value=""):
+    entry = Entry(frame, width=width)
+    entry.pack()
+    entry.insert(0, initial_value)
+    return entry
 
 
 class Popup:
-    def __init__(self, root, commands):
+    def __init__(self, root, fireEvent):
         self.root = root
-        self.commands = commands
-        self.trace_options = None
+        self.fireEvent = fireEvent
+        self.trace_options = {}
 
-    def popup_handler(self, cmd, destroy, *args):
-        args = [arg.get() for arg in args]
-        self.commands[cmd](*args)
+    def popup_handler(self, destroy, target):
+        self.fireEvent(GUIEvent(loc="popup", event_type="submit", t=target))
         destroy()
         self.trace_options = None
 
@@ -25,7 +32,12 @@ class Popup:
         start.pack()
         end = Entry(popup, width=50)
         end.pack()
-        cmd = lambda: self.popup_handler("clear cpoints", popup.destroy, start, end)
+        target = {
+            "name": "clear cpoints",
+            "start": start,
+            "end": end
+        }
+        cmd = lambda: self.popup_handler(popup.destroy, target)
         Button(popup, text="Clear Frames", command=cmd).pack()
 
     def trace_video(self):
@@ -43,55 +55,45 @@ class Popup:
         scanType = StringVar()
         scanType.set("single")
 
-        cmd1 = lambda: self.insert_trace_options("single", popup)
-        cmd2 = lambda: self.insert_trace_options("mult", popup)
-        Radiobutton(popup, text="Single Scan", variable=scanType, value="single", command=cmd1).pack(anchor=W)
-        Radiobutton(popup, text="Multiple scans", variable=scanType, value="mult", command=cmd2).pack(anchor=W)
+        cmd_single = lambda: self.insert_trace_options("single", popup)
+        cmd_mult = lambda: self.insert_trace_options("mult", popup)
+        Radiobutton(popup, text="Single Scan", variable=scanType, value="single", command=cmd_single).pack(anchor=W)
+        Radiobutton(popup, text="Multiple scans", variable=scanType, value="mult", command=cmd_mult).pack(anchor=W)
         self.insert_trace_options("single", popup)
 
-        cmd3 = lambda: self.popup_handler(
-            "trace video",
-            popup.destroy,
-            scanType,
-            start,
-            end,
-            *self.trace_options[1:],
-        )
-        Button(popup, text="Trace Video", command=cmd3).pack()
+        target = {
+            "name": "trace video",
+            "scan type": scanType,
+            "start": start,
+            "end": end,
+            "trace options": self.trace_options[1:]
+        }
+        cmd = lambda: self.popup_handler(popup.destroy, target)
+        Button(popup, text="Trace Video", command=cmd).pack()
 
     def insert_trace_options(self, type, popup):
-        if self.trace_options:
-            for child in self.trace_options[0].winfo_children():
+        if "frame" in self.trace_options:
+            for child in self.trace_options["frame"].winfo_children():
                 child.destroy()
-        else:
-            self.trace_options = [Frame(popup)]
 
-        frame = self.trace_options[0]
-        options = []
+        frame = Frame(popup)
+        self.trace_options = {"frame": frame}
+        entries = {}
         if type == "single":
             Message(frame, text="Min Threshold value", width=300).pack()
-            options.append(Entry(frame, width=10))
-            options[-1].pack()
-            options[-1].insert(0, "150")
-
+            entries["min threshold"] = create_entry(frame, width=10, initial_value="7")
 
         elif type == "mult":
             Message(frame, text="Number of scans", width=300).pack()
-            options.append(Entry(frame, width=5))
-            options[-1].pack()
-            options[-1].insert(0, "7")
+            entries["num scans"] = create_entry(frame, width=15, initial_value="7")
 
             Message(frame, text="Offset of initial scan", width=300).pack()
-            options.append(Entry(frame, width=8))
-            options[-1].pack()
-            options[-1].insert(0, "12")
+            entries["offset initial scan"] = create_entry(frame, width=8, initial_value="12")
 
             Message(frame, text="Offset of final scan", width=300).pack()
-            options.append(Entry(frame, width=8))
-            options[-1].pack()
-            options[-1].insert(0, "15")
+            entries["offset final scan"] = create_entry(frame, width=8, initial_value="15")
 
-        self.trace_options.extend(options)
+        self.trace_options["entries"] = entries
         frame.pack()
 
     def convert_to_video(self):
@@ -110,12 +112,13 @@ class Popup:
         title.pack()
         skip = IntVar()
         Checkbutton(popup, text="Skip converting svg to png", variable=skip).pack()
-        cmd = lambda: self.popup_handler(
-            "convert to video",
-            popup.destroy,
-            start,
-            end,
-            title,
-            skip,
-        )
+
+        target = {
+            "name": "convert video",
+            "start": start,
+            "end": end,
+            "title": title,
+            "skip conversion": skip
+        }
+        cmd = lambda: self.popup_handler(popup.destroy, target)
         Button(popup, text="Convert Video", command=cmd).pack()

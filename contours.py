@@ -12,7 +12,7 @@ class Contours:
         self.vidW = vidW
         self.vidH = vidH
         self.folder_path = folder_path
-        self.knn = load("./data/contour_matcher_knn.joblib")
+        self.knn = load("./machine learning models/contour_matcher_knn.joblib")
         self.max_dist = math.sqrt(self.vidH ** 2 + self.vidW ** 2)
 
     def find_visual_center(self, cnt):

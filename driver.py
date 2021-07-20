@@ -30,7 +30,6 @@ class Driver:
         self.gui = None
         self.video_tracer = None
         self.contours = None
-        self.commands = {}
         self.min_frame = None
         self.max_frame = None
 
@@ -40,7 +39,7 @@ class Driver:
         self.create_frames_folder()
         self.init_classes()
         self.define_commands()
-        self.gui = GUI(self.vid_height, self.commands)
+        self.gui = GUI(self.vid_height, self.eventHandler)
 
         if self.min_frame is not None:
             self.gui.update_frame_num_entry(self.frame)
@@ -105,6 +104,24 @@ class Driver:
             self.contours.write_new
         )
 
+    def eventHandler(self, e):
+        if e.location == "menubar":
+            pass
+        elif e.location == "timeline":
+            pass
+        elif e.location == "root":
+            pass
+        elif e.location == "toolbar":
+            pass
+        elif e.location == "polygon":
+            pass
+        elif e.location == "toolbar":
+            pass
+        elif e.location == "popup":
+            pass
+        else:
+            raise ValueError("Event location is unknown: ", e.location)
+
     def define_commands(self):
         def refresh_after(func):
             func()
@@ -125,6 +142,17 @@ class Driver:
         self.max_frame = int(args[2])
         self.frame = self.min_frame
         self.show_image()
+
+    def next_frame(self):
+        self.set_frame(1, is_rel=True)
+
+    def prev_frame(self):
+        self.set_frame(-1, is_rel=True)
+
+    def go_to_frame(self):
+        frame_num = int(self.frame_num_entry.get())
+        self.set_frame(frame_num, is_rel=False)
+        self.root.focus_set()
 
     def set_frame(self, frame_num, is_rel=False):
         # set frame to the given frame_num, or increment by the frame_num
