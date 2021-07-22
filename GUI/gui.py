@@ -1,5 +1,6 @@
 from GUI.popup import Popup
-
+from GUI.polygon import InteractiveTimePositionedPolygon
+from GUI.toolbar_btn import ToolbarButton
 from tkinter import *
 from tkinter import Tk
 from tkinter import Canvas
@@ -53,8 +54,13 @@ class GUI:
         # Create toolbar buttons
         for icon_name, image in self.icons.items():
             if icon_name not in ["lArrow", "rArrow"]:
-                button = ToolbarButton(gui = self, icon_name=icon_name, master=toolbar, image=image, activebackground='#42cef4',
-                                       command=lambda: self.toolbar_btn_cmd(icon_name))
+                button = ToolbarButton(
+                    gui=self,
+                    icon_name=icon_name,
+                    master=toolbar,
+                    image=image,
+                    activebackground='#42cef4',
+                )
                 self.toolbar_btns[icon_name] = button
                 button.image = image
                 button.pack(pady=5, padx=2)
@@ -72,7 +78,7 @@ class GUI:
         self.frame_num_entry = Entry(timeline, justify='center', takefocus=0)
         self.frame_num_entry.bind("<Return>", self.timeline_entry_return)
         self.frame_num_entry.pack(side=LEFT, padx=10)
-        Button(timeline, image=self.icons['rArrow'], command= self.driver.next_frame).pack(side=LEFT)
+        Button(timeline, image=self.icons['rArrow'], command=self.driver.next_frame).pack(side=LEFT)
         timeline.pack(pady=5)
         self.root.bind('<Left>', self.driver.prev_frame)
         self.root.bind('<Right>', self.driver.next_frame)
@@ -85,7 +91,7 @@ class GUI:
         self.root.config(menu=self.menubar)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def handle_menubar_cmds(self,cmd):
+    def handle_menubar_cmds(self, cmd):
         self.commands = {
             "Save": self.driver.keyframes.write,
             "Print Keyframes": lambda: print(self.driver.keyframes.key_frames),
@@ -96,20 +102,6 @@ class GUI:
         }
 
         self.commands[cmd]()
-
-    def toolbar_btn_cmd(self, target_icon_name):
-        for icon_name in self.toolbar_btns:
-            if target_icon_name != icon_name:
-                btn = self.toolbar_btns[icon_name]
-                btn.configure(bg='#F0F0F0')
-                btn.active = False
-
-    def polygon_cmd(self, id):
-        for poly_id in self.i_polygons:
-            if poly_id != id:
-                poly = self.i_polygons[poly_id]
-                poly.set_outline('#000000', 1)
-                poly.active = False
 
     def timeline_entry_return(self):
         frame_num = int(self.frame_num_entry.get())
@@ -141,8 +133,8 @@ class GUI:
             scaled_pts = [self.scale * pt for pt in polygon]
 
             i_polygon = InteractiveTimePositionedPolygon(
-                id = shape_id,
-                gui = self,
+                id=shape_id,
+                gui=self,
                 active=active_shape_id == shape_id,
                 vertices=scaled_pts,
                 time_pos=time_pos,
@@ -162,68 +154,3 @@ class GUI:
     def on_closing(self):
         self.driver.keyframes.write()
         self.root.destroy()
-
-class InteractiveTimePositionedPolygon():
-    def __init__(self, id, gui, active, vertices, time_pos, **kw):
-        self.gui = gui
-        self.driver = gui.driver
-        self.master = gui.canvas
-        self.tag = self.master.create_polygon(vertices, **kw)
-        self.active = active
-        self.command = gui.polygon_cmd
-
-        self.master.tag_bind(self.tag, "<Button-1>", self.on_click)
-        self.master.tag_bind(self.tag, "<Enter>", self.on_enter)
-        self.master.tag_bind(self.tag, "<Leave>", self.on_leave)
-
-        outline_colours = {
-            'start': '#00FF00',  # green
-            'middle': '#FFA500',  # orange
-            'end': '#FF0000'  # red
-        }
-        if time_pos:
-            self.active_outline_colour = outline_colours[time_pos]
-        else:
-            self.active_outline_colour = '#0000FF'
-
-        if self.active:
-            self.set_outline(self.active_outline_colour, 2)
-
-    def set_outline(self, colour, width):
-        self.master.itemconfig(self.tag, outline=colour, width=width)
-
-    def on_click(self, e):
-        self.set_outline(self.active_outline_colour, 2)
-        self.active = True
-        self.command()
-
-    def on_enter(self, e):
-        if not self.active:
-            self.set_outline(self.active_outline_colour, 1)
-
-    def on_leave(self, e):
-        if not self.active:
-            self.set_outline('#000000', 1)
-
-
-class ToolbarButton(Button):
-    def __init__(self, gui, icon_name, **kw):
-        Button.__init__(self, **kw)
-        self.gui = gui
-        self.driver = gui.driver
-        self.defaultBackground = self["background"]
-        self.active = False
-        self.bind("<Button-1>", self.on_click)
-        # self.bind("<Enter>", self.on_enter)
-        # self.bind("<Leave>", self.on_leave)
-
-    def on_click(self, e):
-        self.active = True
-        self['background'] = self['activebackground']
-
-    def on_enter(self, e):
-        self['background'] = self['activebackground']
-
-    def on_leave(self, e):
-        if not self.active:
-            self['background'] = self.defaultBackground

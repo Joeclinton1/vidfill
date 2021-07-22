@@ -35,6 +35,7 @@ class Driver:
         self.contours = None
         self.min_frame = None
         self.max_frame = None
+        self.current_tool = None
 
     def setup(self):
         self.init_video()
