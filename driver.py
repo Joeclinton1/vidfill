@@ -4,8 +4,11 @@ from video_vectorizer import VideoTracer
 from contours import Contours
 import cv2
 import glob
-import os
 from tkinter import messagebox
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPM
+import os
+import re
 
 
 # TODO: Add context menu, which lets you select one shape as the start, and another as the end end.
@@ -38,8 +41,7 @@ class Driver:
         self.create_data_folder()
         self.create_frames_folder()
         self.init_classes()
-        self.define_commands()
-        self.gui = GUI(self.vid_height, self.eventHandler)
+        self.gui = GUI(self)
 
         if self.min_frame is not None:
             self.gui.update_frame_num_entry(self.frame)
@@ -104,38 +106,6 @@ class Driver:
             self.contours.write_new
         )
 
-    def eventHandler(self, e):
-        if e.location == "menubar":
-            pass
-        elif e.location == "timeline":
-            pass
-        elif e.location == "root":
-            pass
-        elif e.location == "toolbar":
-            pass
-        elif e.location == "polygon":
-            pass
-        elif e.location == "toolbar":
-            pass
-        elif e.location == "popup":
-            pass
-        else:
-            raise ValueError("Event location is unknown: ", e.location)
-
-    def define_commands(self):
-        def refresh_after(func):
-            func()
-            self.show_image()
-
-        self.commands = {
-            "save cpoints": self.keyframes.write,
-            "print keyframes": lambda: print(self.keyframes.key_frames),
-            "clear frames": lambda: refresh_after(self.clear_frames),
-            "trace video": lambda *args: self.trace_video(*args),
-            "set frame": lambda num_frames, is_rel: self.set_frame(num_frames, is_rel),
-            "gen keyframes": lambda: refresh_after(self.gen_keyframes)
-        }
-
     def trace_video(self, *args):
         self.video_tracer.trace(*args)
         self.min_frame = int(args[1])
@@ -143,16 +113,43 @@ class Driver:
         self.frame = self.min_frame
         self.show_image()
 
+    def render_video(self, start, end, title, skip_conversion):
+        # Render video from frames with options
+
+        outVidName = self.rootDir + title + ".mp4"
+        if start < 1 or end > self.max_frame:
+            print("frame out of bound")
+            #TODO: add popup.show_warning() function so a warning with the above message can be called
+            return
+
+        # if skip_conversion is not true, each svg will be converted first to a png.
+        if not skip_conversion:
+            for i in range(start, end + 1):
+                drawing = svg2rlg(self.folder_path + "/frame%d.svg" % i)
+                renderPM.drawToFile(drawing, self.folder_path+ "/frame%d.png" % i, fmt="PNG")
+
+        # we create a dictionary storing all the image file names
+        images = {}
+        for img in os.listdir(self.folder_path):
+            if img.endswith(".png"):
+                file_num = int(re.sub("[^0-9]", "", img))
+                if start <= file_num <= end:
+                    images[file_num] = img
+
+        fourcc = cv2.VideoWriter_fourcc('M', 'P', '4', 'V')
+        video = cv2.VideoWriter(outVidName, fourcc, 15, (int(self.vid_width), int(self.vid_height)), True)
+        for key, image in sorted(images.items()):
+            video.write(cv2.imread(os.path.join(self.folder_path, image)))
+
+        cv2.destroyAllWindows()
+        video.release()
+        self.show_image()
+
     def next_frame(self):
         self.set_frame(1, is_rel=True)
 
     def prev_frame(self):
         self.set_frame(-1, is_rel=True)
-
-    def go_to_frame(self):
-        frame_num = int(self.frame_num_entry.get())
-        self.set_frame(frame_num, is_rel=False)
-        self.root.focus_set()
 
     def set_frame(self, frame_num, is_rel=False):
         # set frame to the given frame_num, or increment by the frame_num
@@ -168,6 +165,8 @@ class Driver:
 
             self.gui.update_frame_num_entry(self.frame)
 
+        self.show_image()
+
     def clear_frames(self, s_frame, e_frame):
         result = messagebox.askyesno("Reset All", "Are you sure?\nThere is no way to undo this", icon='warning')
         if result:
@@ -179,6 +178,7 @@ class Driver:
         key_frames = self.contours.track_contours(self.min_frame, self.max_frame)
         self.keyframes.key_frames = key_frames
         self.keyframes.write()
+        self.show_image()
 
 
 if __name__ == '__main__':

@@ -7,18 +7,21 @@ import os
 
 
 class GUI:
-    def __init__(self, vid_height, fireEvent):
+    def __init__(self, driver):
+        # Create driver reference
+        self.driver = driver
+
         # Init GUI roots
         self.root = Tk()
         self.menubar = None
-        self.popup = Popup(self.root, self.fireEvent)
+        self.popup = Popup(self.root, self)
         self.canvas = None
 
         # Define Screen dimensions
         self.s_width = self.root.winfo_screenwidth()
         self.s_height = self.root.winfo_screenheight()
         self.s_pad = 200
-        self.scale = (self.s_height - self.s_pad) / vid_height
+        self.scale = (self.s_height - self.s_pad) / driver.vid_height
 
         # Setup icons dictionary
         self.icons = {}
@@ -28,10 +31,11 @@ class GUI:
 
         # Init frame variables
         self.frame_num_entry = None
-        # Init other variables
-        self.current_tool = None
-        self.fireEvent = fireEvent
+
+        # init object dictionaries
         self.i_polygons = {}
+        self.toolbar_btns = {}
+
         # Run setup
         self.setup()
         self.toolbar_btns = {}
@@ -41,15 +45,15 @@ class GUI:
 
         # Create menu
         self.menubar = Menu(self.root)
-        for label in ["Save", "Clear Frames", "Trace Video", "Generate Keyframes", "Render", "Print Keyframes"]:
-            self.menubar.add_command(label=label, command=self.fireEvent(GUIEvent("menubar", t=label)))
+        for label in ["Save", "Print Keyframes", "Clear Frames", "Trace Video", "Generate Keyframes", "Render Video"]:
+            self.menubar.add_command(label=label, command=lambda: self.handle_menubar_cmds(label))
 
         # Create toolbar
         toolbar = Frame(self.root)
         # Create toolbar buttons
         for icon_name, image in self.icons.items():
             if icon_name not in ["lArrow", "rArrow"]:
-                button = ToolbarButton(icon_name=icon_name, master=toolbar, image=image, activebackground='#42cef4',
+                button = ToolbarButton(gui = self, icon_name=icon_name, master=toolbar, image=image, activebackground='#42cef4',
                                        command=lambda: self.toolbar_btn_cmd(icon_name))
                 self.toolbar_btns[icon_name] = button
                 button.image = image
@@ -64,14 +68,14 @@ class GUI:
 
         # create timeline buttons
         timeline = Frame(self.root, takefocus=0)
-        Button(timeline, image=self.icons['lArrow'], command=self.fireEvent(GUIEvent("timeline", t= "left arrow"))).pack(side=LEFT)
+        Button(timeline, image=self.icons['lArrow'], command=self.driver.prev_frame).pack(side=LEFT)
         self.frame_num_entry = Entry(timeline, justify='center', takefocus=0)
-        self.frame_num_entry.bind("<Return>", self.fireEvent(GUIEvent("timeline", t= "entry", event_type= "return")))
+        self.frame_num_entry.bind("<Return>", self.timeline_entry_return)
         self.frame_num_entry.pack(side=LEFT, padx=10)
-        Button(timeline, image=self.icons['rArrow'], command= self.fireEvent(GUIEvent("timeline", t= "right arrow"))).pack(side=LEFT)
+        Button(timeline, image=self.icons['rArrow'], command= self.driver.next_frame).pack(side=LEFT)
         timeline.pack(pady=5)
-        self.root.bind('<Left>', lambda event: self.fireEvent(GUIEvent("root", event_type= "left")))
-        self.root.bind('<Right>', lambda event: self.fireEvent(GUIEvent("root", event_type= "right")))
+        self.root.bind('<Left>', self.driver.prev_frame)
+        self.root.bind('<Right>', self.driver.next_frame)
 
         dialogRoot = Toplevel()
         dialogRoot.geometry("%dx%d%+d%+d" % (50, 50, self.s_width / 2 - 300, self.s_height / 2 - 200))
@@ -81,14 +85,24 @@ class GUI:
         self.root.config(menu=self.menubar)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+    def handle_menubar_cmds(self,cmd):
+        self.commands = {
+            "Save": self.driver.keyframes.write,
+            "Print Keyframes": lambda: print(self.driver.keyframes.key_frames),
+            "Clear Frames": self.popup.clear_cpoints,
+            "Trace Video": self.popup.trace_video,
+            "Generate Keyframes": lambda: self.driver.gen_keyframes,
+            "Render Video": self.popup.convert_to_video
+        }
+
+        self.commands[cmd]()
+
     def toolbar_btn_cmd(self, target_icon_name):
         for icon_name in self.toolbar_btns:
             if target_icon_name != icon_name:
                 btn = self.toolbar_btns[icon_name]
                 btn.configure(bg='#F0F0F0')
                 btn.active = False
-
-        self.fireEvent(GUIEvent("toolbar", t=self.toolbar_btns))
 
     def polygon_cmd(self, id):
         for poly_id in self.i_polygons:
@@ -97,7 +111,10 @@ class GUI:
                 poly.set_outline('#000000', 1)
                 poly.active = False
 
-        self.fireEvent(GUIEvent("polygon", t = self.i_polygons[id]))
+    def timeline_entry_return(self):
+        frame_num = int(self.frame_num_entry.get())
+        self.driver.set_frame(frame_num, is_rel=False)
+        self.root.focus_set()
 
     def start(self):
         self.root.mainloop()
@@ -105,9 +122,9 @@ class GUI:
     def draw_polygons(self, polygons, cnt_time_pos_dict):
         # Free up memory by deleting old polygons
         active_shape_id = None
-        for i_poly in self.i_polygons:
+        for id, i_poly in self.i_polygons.items():
             if i_poly.active:
-                active_shape_id = i_poly.id
+                active_shape_id = id
         self.canvas.delete("all")
         for i_polygon in self.i_polygons:
             del i_polygon
@@ -125,11 +142,10 @@ class GUI:
 
             i_polygon = InteractiveTimePositionedPolygon(
                 id = shape_id,
+                gui = self,
                 active=active_shape_id == shape_id,
-                canvas=self.canvas,
                 vertices=scaled_pts,
                 time_pos=time_pos,
-                command=self.polygon_cmd,
                 fill="#" + fill,
                 outline='#000000'
             )
@@ -144,20 +160,21 @@ class GUI:
         print(icon)
 
     def on_closing(self):
-        self.fireEvent(GUIEvent("root"), event_type="close")
+        self.driver.keyframes.write()
         self.root.destroy()
 
 class InteractiveTimePositionedPolygon():
-    def __init__(self, id, active, canvas, vertices, time_pos, command, **kw):
-        self.master = canvas
-        self.tag = canvas.create_polygon(vertices, **kw)
+    def __init__(self, id, gui, active, vertices, time_pos, **kw):
+        self.gui = gui
+        self.driver = gui.driver
+        self.master = gui.canvas
+        self.tag = self.master.create_polygon(vertices, **kw)
         self.active = active
-        self.command = command
-        self.id = id
+        self.command = gui.polygon_cmd
 
-        canvas.tag_bind(self.tag, "<Button-1>", self.on_click)
-        canvas.tag_bind(self.tag, "<Enter>", self.on_enter)
-        canvas.tag_bind(self.tag, "<Leave>", self.on_leave)
+        self.master.tag_bind(self.tag, "<Button-1>", self.on_click)
+        self.master.tag_bind(self.tag, "<Enter>", self.on_enter)
+        self.master.tag_bind(self.tag, "<Leave>", self.on_leave)
 
         outline_colours = {
             'start': '#00FF00',  # green
@@ -190,9 +207,10 @@ class InteractiveTimePositionedPolygon():
 
 
 class ToolbarButton(Button):
-    def __init__(self, icon_name, **kw):
+    def __init__(self, gui, icon_name, **kw):
         Button.__init__(self, **kw)
-        self.icon_name = icon_name
+        self.gui = gui
+        self.driver = gui.driver
         self.defaultBackground = self["background"]
         self.active = False
         self.bind("<Button-1>", self.on_click)
@@ -209,10 +227,3 @@ class ToolbarButton(Button):
     def on_leave(self, e):
         if not self.active:
             self['background'] = self.defaultBackground
-
-
-class GUIEvent:
-    def __init__(self, loc, event_type="click", t=None):
-        self.target = t
-        self.type = event_type
-        self.location = loc
