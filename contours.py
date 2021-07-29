@@ -98,6 +98,7 @@ class Contours:
 
     def read(self, frame):
         self.contours = []
+        self.tk_polygons = []
         tree = ET.parse(self.folder_path + "/frame%d.svg" % frame)
         for path in tree.iterfind("//{http://www.w3.org/2000/svg}path"):
             path_points = path.get("d")[1:].split(",")
@@ -108,7 +109,6 @@ class Contours:
 
             self.tk_polygons.append((id, [item for sublist in path_points for item in sublist], fill))
             self.contours.append([id, np.array(path_points), "#" + fill])
-        return self.contours
 
     def clear_contours_in_range(self, s_frame, e_frame):
         for i in range(s_frame, e_frame + 1):

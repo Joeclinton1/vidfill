@@ -6,7 +6,6 @@ class InteractiveTimePositionedPolygon():
         self.master = gui.canvas
         self.tag = self.master.create_polygon(vertices, **kw)
         self.active = active
-        self.command = lambda: gui.polygon_on_click_cmd(self.id)
 
         self.master.tag_bind(self.tag, "<Button-1>", self.on_click)
         self.master.tag_bind(self.tag, "<Enter>", self.on_enter)
@@ -31,11 +30,10 @@ class InteractiveTimePositionedPolygon():
     def on_click(self, e):
         self.set_outline(self.active_outline_colour, 2)
         self.active = True
-        self.command()
 
         # Set siblings to inactive
         for poly_id in self.gui.i_polygons:
-            if poly_id != id:
+            if poly_id != self.id:
                 poly = self.gui.i_polygons[poly_id]
                 poly.set_outline('#000000', 1)
                 poly.active = False

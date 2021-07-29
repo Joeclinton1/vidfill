@@ -80,8 +80,8 @@ class GUI:
         self.frame_num_entry.pack(side=LEFT, padx=10)
         Button(timeline, image=self.icons['rArrow'], command=self.driver.next_frame).pack(side=LEFT)
         timeline.pack(pady=5)
-        self.root.bind('<Left>', self.driver.prev_frame)
-        self.root.bind('<Right>', self.driver.next_frame)
+        self.root.bind('<Left>', lambda e:self.driver.prev_frame())
+        self.root.bind('<Right>', lambda e:self.driver.next_frame())
 
         dialogRoot = Toplevel()
         dialogRoot.geometry("%dx%d%+d%+d" % (50, 50, self.s_width / 2 - 300, self.s_height / 2 - 200))
@@ -141,6 +141,8 @@ class GUI:
                 fill="#" + fill,
                 outline='#000000'
             )
+
+
             self.i_polygons[shape_id] = i_polygon
 
     def update_frame_num_entry(self, frame):
