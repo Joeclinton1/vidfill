@@ -1,4 +1,4 @@
-from contours import Contours
+from contourshandler import ContoursHandler
 import cv2
 from lxml import etree as ET
 import numpy as np

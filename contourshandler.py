@@ -4,16 +4,17 @@ import numpy as np
 import re
 import math
 from joblib import dump, load
+import copy
 
-class Contours:
-    def __init__(self, folder_path, vidW, vidH):
-        self.contours = []  # contours array of tuples contours[i] -> (cnt, fill)
+class ContoursHandler:
+    def __init__(self, folder_path, vid_w = 0, vid_h=0):
+        self.contours = {}  # contours dict of cnt objects contours[i] -> {points: <list>, fill:<str>}
         self.tk_polygons = []
-        self.vidW = vidW
-        self.vidH = vidH
+        self.vid_w = vid_w
+        self.vid_h = vid_h
         self.folder_path = folder_path
         self.knn = load("./machine learning models/contour_matcher_knn.joblib")
-        self.max_dist = math.sqrt(self.vidH ** 2 + self.vidW ** 2)
+        self.max_dist = math.sqrt(self.vid_h ** 2 + self.vid_w ** 2)
 
     def find_visual_center(self, cnt):
         M = cv2.moments(cnt)
@@ -59,18 +60,18 @@ class Contours:
     def find_closest(self, point):
         tempContours = []
         closest = (10000,)
-        for i, c in enumerate(self.contours):
-            if cv2.pointPolygonTest(c[0], point, measureDist=False) > 0:
-                tempContours.append((c, i))
+        for id, cnt in self.contours.items():
+            if cv2.pointPolygonTest(cnt["points"], point, measureDist=False) > 0:
+                tempContours.append((id, cnt["points"]))
 
-        for c in tempContours:
-            dist = cv2.pointPolygonTest(c[0][0], point, measureDist=True)
+        for id, points in tempContours:
+            dist = cv2.pointPolygonTest(points, point, measureDist=True)
             if dist < closest[0]:
-                closest = (dist, c[1])
+                closest = (dist, id)
         return closest[1]
 
     def write_new(self, isMult, filepath, newContours):
-        root = ET.Element("svg", width=str(self.vidW), height=str(self.vidH), xmlns="http://www.w3.org/2000/svg",
+        root = ET.Element("svg", width=str(self.vid_w), height=str(self.vid_h), xmlns="http://www.w3.org/2000/svg",
                           stroke="black")
         if isMult:
             path = "M3 3,  3 717,1277  717,1277    3,4 3"
@@ -79,7 +80,7 @@ class Contours:
             # epsilon = 0.02*cv2.arcLength(cnt,True)
             approx = cv2.approxPolyDP(cnt, 0.6, False)
             listCnt = np.vstack(approx).squeeze()
-            if len(approx) < 4 or (cv2.contourArea(approx) > self.vidW * self.vidH * 0.9 and isMult):
+            if len(approx) < 4 or (cv2.contourArea(approx) > self.vid_w * self.vid_h * 0.9 and isMult):
                 continue
             else:
                 path = "M" + re.sub('[\[\]]', '', ','.join(map(str, listCnt)))
@@ -88,16 +89,16 @@ class Contours:
         tree.write(filepath)
 
     def modify(self, filepath):
-        root = ET.Element("svg", width=str(self.vidW), height=str(self.vidH), xmlns="http://www.w3.org/2000/svg",
+        root = ET.Element("svg", width=str(self.vid_w), height=str(self.vid_h), xmlns="http://www.w3.org/2000/svg",
                           stroke="black")
-        for cnt in self.contours:
-            path = "M" + re.sub('[\[\]]', '', ','.join(map(str, cnt[0])))
-            ET.SubElement(root, "path", style="fill:" + cnt[1], d=path)
+        for cnt in self.contours.values():
+            path = "M" + re.sub('[\[\]]', '', ','.join(map(str, cnt["points"])))
+            ET.SubElement(root, "path", style="fill:" + cnt["fill"], d=path)
         tree = ET.ElementTree(root)
         tree.write(filepath)
 
     def read(self, frame):
-        self.contours = []
+        self.contours = {}
         self.tk_polygons = []
         tree = ET.parse(self.folder_path + "/frame%d.svg" % frame)
         for path in tree.iterfind("//{http://www.w3.org/2000/svg}path"):
@@ -108,7 +109,11 @@ class Contours:
                 path_points[i] = list(map(int, s.split()))
 
             self.tk_polygons.append((id, [item for sublist in path_points for item in sublist], fill))
-            self.contours.append([id, np.array(path_points), "#" + fill])
+            self.contours[id] = {
+                "points": np.array(path_points),
+                "fill": "#" + fill
+            }
+        return self.contours #Returns dictionary of all the contour objects
 
     def clear_contours_in_range(self, s_frame, e_frame):
         for i in range(s_frame, e_frame + 1):
@@ -118,56 +123,41 @@ class Contours:
                 path.attrib["style"] = "fill:#ffffff"
             tree.write(filepath)
 
-    def track_contours(self, min_frame, max_frame):
-        def get_shapeid_dict(keyframes): # cnt -> shape_id
-            d = {}
-            for shape_id, props in keyframes.items():
-                if props["range"][1] is None:
-                    id = props["indexes"][-1]
-                    d[id] = shape_id
-            return d
-
-        contours1 = self.read(min_frame)
-        key_frames = {}  # shape id -> (min, max) , [cnt1_id, cnt2_id, ...]
-
-        # setup keyframes for first frame
-        for cnt_id, *_ in contours1:
-            key_frames[cnt_id] = {"range": [min_frame, None], "indexes": [cnt_id]}
-
-        # iterate through the frames,  matching contours with those from the frame before and extending the keyframes
-        for frame in range(min_frame + 1, max_frame+1):
-            print("Generating keyframes for frame: ", frame)
-            contours2 = self.read(frame)
-            # foreach contour2 we try to pair it with the matching contour 1, otherwise we pair it with None
-            matches, unmatched_contour2s = self.match_all(contours1, contours2)
-
-            id_to_shapeid = get_shapeid_dict(key_frames)
-            for cnt1_id, cnt2_id in matches.items():
-                shape_id = id_to_shapeid[cnt1_id]
-                if cnt2_id is None:
-                    key_frames[shape_id]["range"][1] = frame - 1
-                else:
-                    key_frames[shape_id]["indexes"].append(cnt2_id)
-                    if frame == max_frame:
-                        key_frames[shape_id]["range"][1] = frame
-            for cnt2_id in unmatched_contour2s:
-                key_frames[len(key_frames) + 1] = {"range": [frame, None], "indexes": [cnt2_id]}
-
-            contours1 = contours2.copy()
-        return key_frames
-
-    def match_all(self, contours1, contours2):
-        contours2 = contours2.copy()
+    def match_all(self, contour_objs, contour_objs2): # Expects two dicts of {id-> contour object}
+        contour_objs2_copy = copy.deepcopy(contour_objs2)
         matches = {}
-        for cnt_id, cnt, _ in contours1:
-            prob, match_id, match_index = self.find_closest_match_knn(cnt, contours2)
+        for cnt_id, cnt_obj in contour_objs.items():
+            prob, match_id = self.find_closest_match_knn(cnt_obj, contour_objs2_copy)
             if prob > 0.5:
                 matches[cnt_id] = match_id
-                del contours2[match_index]
+                del contour_objs2_copy[match_id]
             else:
                 matches[cnt_id] = None
-        unmatched = [a[0] for a in contours2]
+        unmatched = contour_objs2_copy
         return matches, unmatched
+
+    def find_closest_match_knn(self, src_cnt_obj, target_contour_objs):
+        src_cnt = src_cnt_obj["points"]
+        cnt_area = cv2.contourArea(src_cnt )
+        cnt_center = self.center(src_cnt )
+
+        input_xs = []
+        for target_cnt_id, target_cnt_obj in target_contour_objs.items():
+            target_cnt = target_cnt_obj["points"]
+            shape_sim = math.tanh(cv2.matchShapes(src_cnt , target_cnt, 1, 0.0))
+            ratio_area = cv2.contourArea(target_cnt) / cnt_area
+            ratio_area = math.tanh(1 / ratio_area - 1) if ratio_area < 1 else math.tanh(ratio_area - 1)
+            dist = self.dist_between_points(cnt_center, self.center(target_cnt)) / (self.max_dist / 2)
+            input_xs.append({
+                "id":target_cnt_id,
+                "value":(shape_sim, ratio_area,dist)
+            })
+
+        input_x_values = [x["value"] for x in input_xs]
+        probs = self.knn.predict_proba(input_x_values)[:, 1].tolist()
+        prob = max(probs)
+        closest_match_id = input_xs[probs.index(prob)]["id"]
+        return prob, closest_match_id
 
     def find_closest_match(self, cnt, contours):
 
@@ -197,24 +187,6 @@ class Contours:
             if prob >= best[0]:
                 best = (prob, cnt2_id, cnt2_index)
         return best
-
-    def find_closest_match_knn(self, cnt, contours):
-        cnt_area = cv2.contourArea(cnt)
-        cnt_center = self.center(cnt)
-
-        X = []
-        for _, cnt2, _ in contours:
-            shape_sim = math.tanh(cv2.matchShapes(cnt, cnt2, 1, 0.0))
-            ratio_area = cv2.contourArea(cnt2) / cnt_area
-            ratio_area = math.tanh(1 / ratio_area - 1) if ratio_area < 1 else math.tanh(ratio_area - 1)
-            dist = self.dist_between_points(cnt_center, self.center(cnt2)) / (self.max_dist / 2)
-            X.append([shape_sim, ratio_area,dist])
-
-        probs = self.knn.predict_proba(X)[:, 1]
-        prob = max(probs)
-        cnt2_index = np.argmax(probs)
-        cnt2_id = contours[cnt2_index][0]
-        return prob, cnt2_id, cnt2_index
 
     @staticmethod
     def center(cnt):
