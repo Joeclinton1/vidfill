@@ -1,7 +1,7 @@
 from GUI.gui import GUI
-from keyframes import Keyframes
+from keyframeshandler import KeyframesHandler
 from video_vectorizer import VideoTracer
-from contours import Contours
+from contourshandler import ContoursHandler
 import cv2
 import glob
 from tkinter import messagebox
@@ -9,6 +9,7 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 import os
 import re
+from util import get_min_max_frame
 
 
 # TODO: Add context menu, which lets you select one shape as the start, and another as the end end.
@@ -29,7 +30,7 @@ class Driver:
         self.vid_frame_count = 0
         self.rootDir = ""
         self.folder_path = ""
-        self.keyframes = None
+        self.keyframes_handler = None
         self.gui = None
         self.video_tracer = None
         self.contours = None
@@ -76,25 +77,22 @@ class Driver:
             os.makedirs("%s/frames/frames_01" % self.rootDir)
         self.folder_path = self.rootDir + "/frames/frames_" + str(folderNum).zfill(2)
 
-        svg_frames = glob.glob("%s/frame*.svg" % self.folder_path)
-        if svg_frames:
-            self.min_frame = int(min(svg_frames).split("\\")[-1][5:-4])
-            self.max_frame = max([int(a.split("\\")[-1][5:-4]) for a in svg_frames])
-            self.frame = self.min_frame
+        self.min_frame, self.max_frame = get_min_max_frame(self.folder_path)
+        self.frame = self.min_frame
 
     def show_image(self):
         # Gets frame data and draws polygons to screen
-        self.keyframes.read()
+        self.keyframes_handler.read()
         self.contours.read(self.frame)
-        cnt_time_pos_dict = self.keyframes.get_cnt_time_pos_dict(self.frame)
-        self.gui.draw_polygons(self.contours.tk_polygons, cnt_time_pos_dict)
+        tracked_poly_data_dict = self.keyframes_handler.get_tracked_poly_data_dict(self.frame)
+        self.gui.draw_polygons(self.contours.tk_polygons, tracked_poly_data_dict)
 
     def init_classes(self):
-        self.keyframes = Keyframes(
+        self.keyframes_handler = KeyframesHandler(
             self.folder_path
         )
 
-        self.contours = Contours(
+        self.contours = ContoursHandler(
             self.folder_path,
             self.vid_width,
             self.vid_height
@@ -171,14 +169,13 @@ class Driver:
     def clear_frames(self, s_frame, e_frame):
         result = messagebox.askyesno("Reset All", "Are you sure?\nThere is no way to undo this", icon='warning')
         if result:
-            self.keyframes.clear_cpoints_in_range(s_frame, e_frame)
+            self.keyframes_handler.clear_keyframes_in_range(s_frame, e_frame)
             self.contours.clear_contours_in_range(s_frame, e_frame)
             self.show_image()
 
     def gen_keyframes(self):
-        key_frames = self.contours.track_contours(self.min_frame, self.max_frame)
-        self.keyframes.key_frames = key_frames
-        self.keyframes.write()
+        self.keyframes_handler.generate_keyframes(self.min_frame, self.max_frame, self.contours)
+        self.keyframes_handler.write()
         self.show_image()
 
 

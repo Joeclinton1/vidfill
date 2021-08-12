@@ -36,10 +36,21 @@ class GUI:
         # init object dictionaries
         self.i_polygons = {}
         self.toolbar_btns = {}
+        self.keyframe_paths = {}
 
         # Run setup
         self.setup()
         self.toolbar_btns = {}
+
+        # Menubar commands
+        self.menubar_cmds = {
+            "Save": self.driver.keyframes_handler.write,
+            "Print Keyframes": lambda: print(self.driver.keyframes_handler.key_frames),
+            "Clear Frames": self.popup.clear_cpoints,
+            "Trace Video": self.popup.trace_video,
+            "Generate Keyframes": self.driver.gen_keyframes,
+            "Render Video": self.popup.convert_to_video
+        }
 
     def setup(self):
         self.root.geometry("%dx%d+0+0" % (self.s_width, self.s_height))
@@ -47,7 +58,7 @@ class GUI:
         # Create menu
         self.menubar = Menu(self.root)
         for label in ["Save", "Print Keyframes", "Clear Frames", "Trace Video", "Generate Keyframes", "Render Video"]:
-            self.menubar.add_command(label=label, command=lambda: self.handle_menubar_cmds(label))
+            self.menubar.add_command(label=label, command=lambda l=label: self.menubar_cmds[l]())
 
         # Create toolbar
         toolbar = Frame(self.root)
@@ -91,18 +102,6 @@ class GUI:
         self.root.config(menu=self.menubar)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-    def handle_menubar_cmds(self, cmd):
-        self.commands = {
-            "Save": self.driver.keyframes.write,
-            "Print Keyframes": lambda: print(self.driver.keyframes.key_frames),
-            "Clear Frames": self.popup.clear_cpoints,
-            "Trace Video": self.popup.trace_video,
-            "Generate Keyframes": lambda: self.driver.gen_keyframes,
-            "Render Video": self.popup.convert_to_video
-        }
-
-        self.commands[cmd]()
-
     def timeline_entry_return(self):
         frame_num = int(self.frame_num_entry.get())
         self.driver.set_frame(frame_num, is_rel=False)
@@ -111,12 +110,12 @@ class GUI:
     def start(self):
         self.root.mainloop()
 
-    def draw_polygons(self, polygons, cnt_time_pos_dict):
+    def draw_polygons(self, polygons, tracked_poly_data_dict):
         # Free up memory by deleting old polygons
-        active_shape_id = None
+        active_tracked_poly_id = None
         for id, i_poly in self.i_polygons.items():
             if i_poly.active:
-                active_shape_id = id
+                active_tracked_poly_id = id
         self.canvas.delete("all")
         for i_polygon in self.i_polygons:
             del i_polygon
@@ -124,26 +123,25 @@ class GUI:
 
         # Create new polygons
         for cnt_id, polygon, fill in polygons:
-            if cnt_id in cnt_time_pos_dict:
-                time_pos = cnt_time_pos_dict[cnt_id][0]
-                shape_id = cnt_time_pos_dict[cnt_id][1]
+            if cnt_id in tracked_poly_data_dict:
+                time_pos = tracked_poly_data_dict[cnt_id].temporal_label
+                tracked_poly_id = tracked_poly_data_dict[cnt_id].tracked_poly_id
             else:
                 time_pos = None
-                shape_id = None
+                tracked_poly_id = None
             scaled_pts = [self.scale * pt for pt in polygon]
 
             i_polygon = InteractiveTimePositionedPolygon(
-                id=shape_id,
+                id=tracked_poly_id,
                 gui=self,
-                active=active_shape_id == shape_id,
+                active=active_tracked_poly_id is not None and active_tracked_poly_id == tracked_poly_id,
                 vertices=scaled_pts,
                 time_pos=time_pos,
                 fill="#" + fill,
                 outline='#000000'
             )
 
-
-            self.i_polygons[shape_id] = i_polygon
+            self.i_polygons[tracked_poly_id] = i_polygon
 
     def update_frame_num_entry(self, frame):
         self.frame_num_entry.delete(0, END)
@@ -154,5 +152,5 @@ class GUI:
         print(icon)
 
     def on_closing(self):
-        self.driver.keyframes.write()
+        self.driver.keyframes_handler.write()
         self.root.destroy()
