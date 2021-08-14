@@ -1,5 +1,5 @@
 from GUI.popup import Popup
-from GUI.polygon import InteractiveTimePositionedPolygon
+from GUI.interactive_polygon import InteractiveTimePositionedPolygon
 from GUI.toolbar_btn import ToolbarButton
 from tkinter import *
 from tkinter import Tk
