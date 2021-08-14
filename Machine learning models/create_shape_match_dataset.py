@@ -1,4 +1,4 @@
-from contourshandler import ContoursHandler
+from polygons_handler import PolygonsHandler
 import cv2
 from lxml import etree as ET
 import numpy as np

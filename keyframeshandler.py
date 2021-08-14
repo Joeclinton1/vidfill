@@ -1,6 +1,6 @@
 from lxml import etree as ET
 import math
-from contourshandler import ContoursHandler
+from polygons_handler import PolygonsHandler
 import glob
 from util import get_min_max_frame
 import json
@@ -14,8 +14,9 @@ self.keyframes structure is:
 ]}
 """
 
+
 def replace_path_points_data(folder_path):
-    contours = ContoursHandler(folder_path)
+    polygons_handler = PolygonsHandler(folder_path)
     keyframes_handler = KeyframesHandler(folder_path)
     num_frames = len(glob.glob("%s/frame*.svg" % folder_path))
     keyframes = keyframes_handler.keyframes
@@ -23,15 +24,15 @@ def replace_path_points_data(folder_path):
         keyframe.path_points = []
 
     for frame in range(1, num_frames + 1):
-        contours.read(frame)
+        polygons_handler.read(frame)
         id_to_tracked_polyid_dict = keyframes_handler.get_id_to_tracked_polyid_dict(frame)
-        for cnt in contours.contours:
+        for cnt in polygons_handler.polygons:
             id = cnt["id"]
             points = cnt["points"]
             tracked_poly_id = id_to_tracked_polyid_dict[id]
             keyframe = keyframes[tracked_poly_id]
             start_frame = keyframe.range[0]
-            keyframe.path_points[frame - start_frame] = contours.center(points)
+            keyframe.path_points[frame - start_frame] = polygons_handler.center(points)
 
     keyframes_handler.write()
 
@@ -66,13 +67,13 @@ class KeyframesHandler:
         min_frame = get_min_max_frame(self.folder)[0]
         # generate dict of keyframes objects for first frame
         keyframes = {}
-        contours_handler =  ContoursHandler(self.folder)
-        contours = contours_handler.read(1)
-        for cnt_id, cnt_obj in contours.items():
+        polygons_handler = PolygonsHandler(self.folder)
+        polygons = polygons_handler.read(1)
+        for cnt_id, cnt_obj in polygons.items():
             keyframes[cnt_id] = Keyframe(
-                range=[min_frame,min_frame],
+                range=[min_frame, min_frame],
                 indices=[cnt_id],
-                path_points=[contours_handler.center(cnt_obj["points"])]
+                path_points=[polygons_handler.center(cnt_obj["points"])]
             )
         self.keyframes = keyframes
         self.write()
@@ -96,7 +97,8 @@ class KeyframesHandler:
         tree = ET.parse(self.folder + "/keyframes.xml")
         for tracked_poly in tree.iterfind("//tracked_poly"):
             tracked_poly_id = int(tracked_poly.get('tracked_poly_id'))
-            keyframe_attributes = {key: json.loads(val) for key, val in tracked_poly.items() if key != 'tracked_poly_id'}
+            keyframe_attributes = {key: json.loads(val) for key, val in tracked_poly.items() if
+                                   key != 'tracked_poly_id'}
             keyframe = Keyframe(**keyframe_attributes)
 
             self.keyframes[tracked_poly_id] = keyframe
@@ -133,38 +135,38 @@ class KeyframesHandler:
         for id, tracked_poly_id in id_to_tracked_polyid_dict.items():
             keyframe = self.keyframes[tracked_poly_id]
             f_min = keyframe.range[0]
-            f_max = math.inf if len( keyframe.range) == 1 else keyframe.range[1]
+            f_max = math.inf if len(keyframe.range) == 1 else keyframe.range[1]
             d[id] = TrackedPolyData(
-                tracked_poly_id = tracked_poly_id,
-                frame = frame,
-                start = f_min,
-                end = f_max,
-                path_points = keyframe.path_points
+                tracked_poly_id=tracked_poly_id,
+                frame=frame,
+                start=f_min,
+                end=f_max,
+                path_points=keyframe.path_points
             )
         return d
 
-    def generate_keyframes(self, min_frame, max_frame, contours_handler):
+    def generate_keyframes(self, min_frame, max_frame, polygons_handler):
         # read contours for first frame
-        contours_prev = contours_handler.read(min_frame)
+        polygons_prev = polygons_handler.read(min_frame)
 
         # Remove indexes from keyframes after min_frame
         for tracked_poly_id, tracked_poly_obj in self.keyframes.items():
             min_range, max_range = tracked_poly_obj.range
-            if min_range>min_frame and max_range<max_frame:
-                self.keyframes[tracked_poly_id].indices = tracked_poly_obj.indices[:min_frame-min_range+1]
+            if min_range > min_frame and max_range < max_frame:
+                self.keyframes[tracked_poly_id].indices = tracked_poly_obj.indices[:min_frame - min_range + 1]
 
-        # iterate through the frames,  matching contours with those from the frame before and extending the keyframes
+        # iterate through the frames,  matching polygons with those from the frame before and extending the keyframes
         for frame in range(min_frame + 1, max_frame + 1):
             print("Generating keyframes for frame: ", frame)
-            contours = contours_handler.read(frame)
+            polygons = polygons_handler.read(frame)
 
             # foreach contour we try to pair it with the matching contour_prev, otherwise we pair it with None
-            # unmatched_dict contains the contours in current frame not matched with one from contours_prev
-            match_dict, unmatched_dict = contours_handler.match_all(contours_prev, contours)
+            # unmatched_dict contains the polygons in current frame not matched with one from polygons_prev
+            match_dict, unmatched_dict = polygons_handler.match_all(polygons_prev, polygons)
 
             # for each matching pair, we find which tracked_poly to extend,
             # by getting the tracked_poly id of the src contour
-            id_to_tracked_polyid_dict = self.get_id_to_tracked_polyid_dict(frame-1)
+            id_to_tracked_polyid_dict = self.get_id_to_tracked_polyid_dict(frame - 1)
             for cnt1_id, cnt2_id in match_dict.items():
                 if cnt1_id not in id_to_tracked_polyid_dict:
                     return
@@ -182,10 +184,10 @@ class KeyframesHandler:
                 self.keyframes[len(self.keyframes) + 1] = Keyframe(
                     range=[frame, frame],
                     indices=[cnt2_id],
-                    path_points = [contours_handler.center(cnt2_obj["points"])]
+                    path_points=[polygons_handler.center(cnt2_obj["points"])]
                 )
 
-            contours_prev = contours.copy()
+            polygons_prev = polygons.copy()
 
 
 if __name__ == "__main__":

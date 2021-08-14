@@ -1,7 +1,7 @@
 from GUI.gui import GUI
 from keyframeshandler import KeyframesHandler
 from video_vectorizer import VideoTracer
-from contourshandler import ContoursHandler
+from polygons_handler import PolygonsHandler
 import cv2
 import glob
 from tkinter import messagebox
@@ -33,7 +33,7 @@ class Driver:
         self.keyframes_handler = None
         self.gui = None
         self.video_tracer = None
-        self.contours = None
+        self.polygons_handler = None
         self.min_frame = None
         self.max_frame = None
         self.current_tool = None
@@ -83,16 +83,16 @@ class Driver:
     def show_image(self):
         # Gets frame data and draws polygons to screen
         self.keyframes_handler.read()
-        self.contours.read(self.frame)
+        self.polygons_handler.read(self.frame)
         tracked_poly_data_dict = self.keyframes_handler.get_tracked_poly_data_dict(self.frame)
-        self.gui.draw_polygons(self.contours.tk_polygons, tracked_poly_data_dict)
+        self.gui.draw_contours(self.polygons_handler.tk_polygons, tracked_poly_data_dict)
 
     def init_classes(self):
         self.keyframes_handler = KeyframesHandler(
             self.folder_path
         )
 
-        self.contours = ContoursHandler(
+        self.polygons_handler = PolygonsHandler(
             self.folder_path,
             self.vid_width,
             self.vid_height
@@ -102,7 +102,7 @@ class Driver:
             self.vid_cap,
             (self.vid_width, self.vid_height),
             self.vid_frame_count,
-            self.contours.write_new
+            self.polygons_handler.write_new_polygons
         )
 
     def trace_video(self, *args):
@@ -170,14 +170,13 @@ class Driver:
         result = messagebox.askyesno("Reset All", "Are you sure?\nThere is no way to undo this", icon='warning')
         if result:
             self.keyframes_handler.clear_keyframes_in_range(s_frame, e_frame)
-            self.contours.clear_contours_in_range(s_frame, e_frame)
+            self.polygons_handler.set_polygons_white_in_range(s_frame, e_frame)
             self.show_image()
 
     def gen_keyframes(self):
-        self.keyframes_handler.generate_keyframes(self.min_frame, self.max_frame, self.contours)
+        self.keyframes_handler.generate_keyframes(self.min_frame, self.max_frame, self.polygons_handler)
         self.keyframes_handler.write()
         self.show_image()
-
 
 if __name__ == '__main__':
     vid_filepath = r"C:\Users\Joe\OneDrive\Documents\youtube\Asdf12_full\asdfmovie12.mp4"
