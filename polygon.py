@@ -45,22 +45,21 @@ class Polygon:
             dist = newDist
         return False
 
-    def find_closest_match(self, polygons):
+    def find_closest_match(self, polygons, polygon_matcher):
         polygon_variables = []
         for polygon_id, polygon in polygons.items():
-            shape_sim = math.tanh(self.shape_sim(polygon))
-            ratio_area = self.ratio_area(polygon)
-            ratio_area = math.tanh(1 / ratio_area - 1) if ratio_area < 1 else math.tanh(ratio_area - 1)
-            dist = self.distance(polygon)/ (self.max_dist / 2)
             polygon_variables.append({
                 "id":polygon_id,
-                "value":(shape_sim, ratio_area,dist)
+                "value": (
+                    self.shape_sim(polygon),
+                    self.ratio_area(polygon),
+                    self.distance(polygon)
+                )
             })
 
         input_x_values = [x["value"] for x in polygon_variables]
-        probs = self.knn.predict_proba(input_x_values)[:, 1].tolist()
-        prob = max(probs)
-        closest_match_id = polygon_variables[probs.index(prob)]["id"]
+        index, prob = polygon_matcher.predict_closest_match(input_x_values)
+        closest_match_id = polygon_variables[index]["id"]
         return prob, closest_match_id
 
     def is_point_inside(self, point):

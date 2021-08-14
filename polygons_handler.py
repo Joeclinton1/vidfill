@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 import re
 import math
-from joblib import load
 import copy
+from ML.contour_matching.polygon_matcher import PolygonMatcher
 
 
 class PolygonsHandler:
@@ -14,8 +14,8 @@ class PolygonsHandler:
         self.vid_w = vid_w
         self.vid_h = vid_h
         self.folder_path = folder_path
-        self.knn = load("./machine learning models/contour_matcher_knn.joblib")
         self.max_dist = math.sqrt(self.vid_h ** 2 + self.vid_w ** 2)
+        self.polygon_matcher = PolygonMatcher(self.max_dist)
 
     def write_new_contours(self, isMult, filepath, contours):
         root = ET.Element("svg", width=str(self.vid_w), height=str(self.vid_h), xmlns="http://www.w3.org/2000/svg",
