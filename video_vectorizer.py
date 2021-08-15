@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+from polygons_handler import PolygonsHandler
+from polygon import Polygon
 
 kernel = np.ones((3, 3), np.uint8)
 kernel2 = np.ones((11, 11), np.uint8)
@@ -7,10 +9,9 @@ kernel3 = np.ones((1, 1), np.uint8)
 
 
 class VideoTracer:
-    def __init__(self, filepath, vid_cap, vid_size, num_frames, cnt_write):
-        self.filepath = filepath
+    def __init__(self, folder_path, vid_cap, vid_size, num_frames):
+        self.folder_path = folder_path
         self.vid_cap = vid_cap
-        self.cnt_write = cnt_write
         self.vid_size = vid_size
         self.num_frames = num_frames
 
@@ -73,17 +74,22 @@ class VideoTracer:
                 print("Initial offset value not in range 0 -> 100")
                 return
 
+        # create instance of polygon handler
+        width, height = self.vid_size
+        polygon_handler = PolygonsHandler(self.folder_path, width, height)
+
         # Trace each frame in video
-        for count in range(int(start), int(end) + 1):
-            print("tracing frame #%d"%count)
-            self.vid_cap.set(cv2.CAP_PROP_POS_MSEC, (count-1) * 67)
+        for frame in range(int(start), int(end) + 1):
+            print("tracing frame #%d"%frame)
+            self.vid_cap.set(cv2.CAP_PROP_POS_MSEC, (frame-1) * 67)
             success, frame = self.vid_cap.read()
-            filepathJPG = self.filepath + "/frame%d.jpg" % count
-            filepathXML = self.filepath + "/frame%d.svg" % count
+            filepathJPG = self.folder_path + "/frame%d.jpg" % frame
             cv2.imwrite(filepathJPG, frame)
             if scan_type == "single":
                 contours = self.img2ContoursThresh(filepathJPG, *args)
-                self.cnt_write(False, filepathXML, contours)
+                polygons = map(lambda cnt:Polygon(cnt, "#ffffff"), contours)
+                polygon_handler.write(False, frame, polygons)
             else:
                 contours = self.img2ContoursMult(filepathJPG, *args)
-                self.cnt_write(True, filepathXML, contours)
+                polygons = map(lambda cnt: Polygon(cnt, "#ffffff"), contours)
+                polygon_handler.write(False, frame, polygons)

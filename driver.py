@@ -102,7 +102,7 @@ class Driver:
             self.vid_cap,
             (self.vid_width, self.vid_height),
             self.vid_frame_count,
-            self.polygons_handler.write_new_polygons
+            self.polygons_handler.write_new
         )
 
     def trace_video(self, *args):
@@ -177,6 +177,9 @@ class Driver:
         self.keyframes_handler.generate_keyframes(self.min_frame, self.max_frame, self.polygons_handler)
         self.keyframes_handler.write()
         self.show_image()
+
+    def save(self):
+        self.keyframes_handler.write()
 
 if __name__ == '__main__':
     vid_filepath = r"C:\Users\Joe\OneDrive\Documents\youtube\Asdf12_full\asdfmovie12.mp4"
