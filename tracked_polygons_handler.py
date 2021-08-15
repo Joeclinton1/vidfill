@@ -154,39 +154,48 @@ class TrackedPolygonsHandler:
             if min_range > min_frame and max_range < max_frame:
                 self.tracked_polygons[tracked_poly_id].indices = tracked_poly_obj.indices[:min_frame - min_range + 1]
 
-        # iterate through the frames,  matching polygons with those from the frame before and extending the tracked_polygons
+        # foreach frame match it's polygons with those from the frame before and extend self.tracked_polygons
         for frame in range(min_frame + 1, max_frame + 1):
             print("Generating tracked_polygons for frame: ", frame)
             polygons = polygons_handler.read(frame)
 
-            # foreach contour we try to pair it with the matching contour_prev, otherwise we pair it with None
-            # unmatched_dict contains the polygons in current frame not matched with one from polygons_prev
-            match_dict, unmatched_dict = polygons_handler.match_all(polygons_prev, polygons)
+            # foreach contour we try to pair it with the matching polygon_prev, otherwise we pair it with None
+            matches, unmatched_polygons = polygons_handler.match_all(polygons_prev, polygons)
 
-            # for each matching pair, we find which tracked_poly to extend,
-            # by getting the tracked_poly id of the src contour
+            # to determine which polygon belongs to which tracked_polygon we get a dictionary with this info
             id_to_tracked_polyid_dict = self.get_id_to_tracked_polyid_dict(frame - 1)
-            for cnt1_id, cnt2_id in match_dict.items():
-                if cnt1_id not in id_to_tracked_polyid_dict:
-                    return
-                if id_to_tracked_polyid_dict[cnt1_id] not in self.tracked_polygons:
-                    return
-                tracked_poly = self.tracked_polygons[id_to_tracked_polyid_dict[cnt1_id]]
-                if cnt2_id is None:
+
+            for poly1_id, poly2_id in matches.items():
+                tracked_poly = self.tracked_polygons[id_to_tracked_polyid_dict[poly1_id]]
+
+                # if no match is found poly2_id will be None
+                if poly2_id is None:
+                    # end the tracked_poly's time range at the previous frame
                     tracked_poly.range[1] = frame - 1
                 else:
-                    tracked_poly.indices.append(cnt2_id)
+                    # extend the tracked_poly's range and indices to include this frame.
+                    tracked_poly.indices.append(poly2_id)
                     tracked_poly.range[1] = frame
 
             # for each unmatched pair create a new tracked_poly object and append to the tracked_polygons dict
-            for cnt2_id, cnt2_obj in unmatched_dict.items():
+            for id, polygon in unmatched_polygons.items():
                 self.tracked_polygons[len(self.tracked_polygons) + 1] = TrackedPolygon(
                     range=[frame, frame],
-                    indices=[cnt2_id],
-                    path_points=[polygons_handler.center(cnt2_obj["points"])]
+                    indices=[id],
+                    path_points=[polygon.center]
                 )
 
             polygons_prev = polygons.copy()
+
+    def print_tracked_polygons(self):
+        for id, polygon in self.tracked_polygons.items():
+            range, indices, path_points = polygon.__dict__.values()
+            print(
+                id, "=>",
+                "range: ", range,
+                "indices: ", indices,
+                "path points", path_points,
+            )
 
 
 if __name__ == "__main__":

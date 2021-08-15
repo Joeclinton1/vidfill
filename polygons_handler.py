@@ -75,19 +75,25 @@ class PolygonsHandler:
                 path.attrib["style"] = "fill:#ffffff"
             tree.write(filepath)
 
-    @staticmethod
-    def match_all(polygons_prev, polygons_new):  # Expects two dicts of {id-> contour object}
+    def match_all(self, polygons_prev, polygons_new):  # Expects two dicts of {id-> contour object}
         polygons_new_copy = copy.deepcopy(polygons_new)
-        matches = {}
+        matches = {} # polygon id 1 -> matched polygon id 2
         for poly_id, polygon in polygons_prev.items():
-            prob, match_id = polygon.find_closest_match(polygons_new_copy)
+            prob, match_id = polygon.find_closest_match(polygons_new_copy, self.polygon_matcher)
             if prob > 0.5:
                 matches[poly_id] = match_id
                 del polygons_new_copy[match_id]
             else:
                 matches[poly_id] = None
-        unmatched = polygons_new_copy
-        return matches, unmatched
+        unmatched_polygons = polygons_new_copy
+
+        # matched gives pairs of polygons which were matched
+        # unmatched_polygons gives the polygons in current frame not matched with one from polygons_prev
+
+        # matches: {polygon1 id => polygon 2 id}
+        # unmatched_polygons: {polygon id => polygon}
+
+        return matches, unmatched_polygons
 
     def closest_polygon_to_point(self, point):
         closest = (None, math.inf)

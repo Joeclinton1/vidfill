@@ -44,8 +44,8 @@ class GUI:
 
         # Menubar commands
         self.menubar_cmds = {
-            "Save": self.driver.tracked_polygons_handler.write,
-            "Print tracked_polygons": lambda: print(self.driver.tracked_polygons_handler.key_frames),
+            "Save": self.driver.save,
+            "Print tracked_polygons": self.driver.tracked_polygons_handler.print_tracked_polygons,
             "Clear Frames": self.popup.clear_cpoints,
             "Trace Video": self.popup.trace_video,
             "Generate tracked_polygons": self.driver.gen_tracked_polygons,

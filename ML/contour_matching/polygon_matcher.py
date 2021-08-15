@@ -4,7 +4,7 @@ from joblib import load
 
 class PolygonMatcher:
     def __init__(self, max_dist):
-        self.knn = load("./machine learning models/contour_matcher_knn.joblib")
+        self.knn = load("ML/contour_matching/contour_matcher_knn.joblib")
         self.max_dist = max_dist
 
     def normalise(self, shape_sim, ratio_area, dist):
@@ -14,7 +14,7 @@ class PolygonMatcher:
         return shape_sim, ratio_area, dist
 
     def predict_closest_match(self, input_xs):
-        input_xs = map(self.normalise, input_xs)
+        input_xs = list(map(lambda x: self.normalise(*x), input_xs))
         probs = self.knn.predict_proba(input_xs)[:, 1].tolist()
         prob = max(probs)
         index = probs.index(prob)

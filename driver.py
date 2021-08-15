@@ -12,30 +12,20 @@ import re
 from util import get_min_max_frame
 
 
-# TODO: Add context menu, which lets you select one shape as the start, and another as the end end.
-# TODO: Make an auto fill tool and make a regular fill tool.
-# Done
-
 class Driver:
     def __init__(self, vid_filepath, project_name):
         # User defined variables
         self.vid_filepath = vid_filepath
         self.project_name = project_name
 
-        # Initialize variables
-        self.vid_width = 0
-        self.vid_height = 0
-        self.vid_cap = None
-        self.frame = None
-        self.vid_frame_count = 0
-        self.rootDir = ""
-        self.folder_path = ""
-        self.gui = None
-        self.min_frame = None
-        self.max_frame = None
-        self.current_tool = None
+        # Get video and video properties
+        self.vid_cap = cv2.VideoCapture(self.vid_filepath)
+        self.vid_width, self.vid_height, self.vid_frame_count = self.get_video_props()
 
-        # create object instances
+        # Get folder path
+        self.rootDir, self.folder_path = self.get_folder_path()
+
+        # Create object instances
         self.polygons_handler = PolygonsHandler(
             self.folder_path,
             self.vid_width,
@@ -53,46 +43,43 @@ class Driver:
             self.folder_path
         )
 
-    def setup(self):
-        self.init_video()
-        self.create_data_folder()
-        self.create_frames_folder()
+        # Initialise other variables
         self.gui = GUI(self)
+        self.min_frame, self.max_frame = get_min_max_frame(self.folder_path)
+        self.frame = self.min_frame
+        self.current_tool = None
 
+    def start_gui(self):
         if self.min_frame is not None:
             self.gui.update_frame_num_entry(self.frame)
             self.show_image()
         self.gui.start()
 
-    def init_video(self):
-        # Get the video and video properties
-        self.vid_cap = cv2.VideoCapture(self.vid_filepath)
-        self.vid_width = self.vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        self.vid_height = self.vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        self.vid_frame_count = int(self.vid_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    def get_video_props(self):
+        vid_width = self.vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        vid_height = self.vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        vid_frame_count = int(self.vid_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        return vid_width, vid_height, vid_frame_count
 
-    def create_data_folder(self):
+    def get_folder_path(self):
         # If data folder doesn't exist create it
-        self.rootDir = "./data/%s" % self.project_name
-        if not os.path.exists(self.rootDir):
-            os.makedirs(self.rootDir)
+        rootDir = "./data/%s" % self.project_name
+        if not os.path.exists(rootDir):
+            os.makedirs(rootDir)
 
-    def create_frames_folder(self):
         # If frames folder doesn't exist create it
-        if not os.path.exists("%s/frames" % self.rootDir):
-            os.makedirs("%s/frames" % self.rootDir)
+        if not os.path.exists("%s/frames" % rootDir):
+            os.makedirs("%s/frames" % rootDir)
 
         # Find out the num of the most recent frame folder if it doesn't exist create it
-        frame_folders = glob.glob("%s/frames/frames_??" % self.rootDir)
+        frame_folders = glob.glob("%s/frames/frames_??" % rootDir)
         if frame_folders:
             folderNum = int(max(frame_folders)[-2:])
         else:
             folderNum = 1
-            os.makedirs("%s/frames/frames_01" % self.rootDir)
-        self.folder_path = self.rootDir + "/frames/frames_" + str(folderNum).zfill(2)
-
-        self.min_frame, self.max_frame = get_min_max_frame(self.folder_path)
-        self.frame = self.min_frame
+            os.makedirs("%s/frames/frames_01" % rootDir)
+        filepath = rootDir + "/frames/frames_" + str(folderNum).zfill(2)
+        return rootDir, filepath
 
     def show_image(self):
         # Gets frame data and draws polygons to screen
@@ -114,14 +101,14 @@ class Driver:
         outVidName = self.rootDir + title + ".mp4"
         if start < 1 or end > self.max_frame:
             print("frame out of bound")
-            #TODO: add popup.show_warning() function so a warning with the above message can be called
+            # TODO: add popup.show_warning() function so a warning with the above message can be called
             return
 
         # if skip_conversion is not true, each svg will be converted first to a png.
         if not skip_conversion:
             for i in range(start, end + 1):
                 drawing = svg2rlg(self.folder_path + "/frame%d.svg" % i)
-                renderPM.drawToFile(drawing, self.folder_path+ "/frame%d.png" % i, fmt="PNG")
+                renderPM.drawToFile(drawing, self.folder_path + "/frame%d.png" % i, fmt="PNG")
 
         # we create a dictionary storing all the image file names
         images = {}
@@ -183,4 +170,4 @@ if __name__ == '__main__':
     project_name = "asdf12"
 
     driver = Driver(vid_filepath, project_name)
-    driver.setup()
+    driver.start_gui()
