@@ -44,11 +44,11 @@ class GUI:
 
         # Menubar commands
         self.menubar_cmds = {
-            "Save": self.driver.keyframes_handler.write,
-            "Print Keyframes": lambda: print(self.driver.keyframes_handler.key_frames),
+            "Save": self.driver.tracked_polygons_handler.write,
+            "Print tracked_polygons": lambda: print(self.driver.tracked_polygons_handler.key_frames),
             "Clear Frames": self.popup.clear_cpoints,
             "Trace Video": self.popup.trace_video,
-            "Generate Keyframes": self.driver.gen_keyframes,
+            "Generate tracked_polygons": self.driver.gen_tracked_polygons,
             "Render Video": self.popup.convert_to_video
         }
 
@@ -57,7 +57,7 @@ class GUI:
 
         # Create menu
         self.menubar = Menu(self.root)
-        for label in ["Save", "Print Keyframes", "Clear Frames", "Trace Video", "Generate Keyframes", "Render Video"]:
+        for label in ["Save", "Print tracked_polygons", "Clear Frames", "Trace Video", "Generate tracked_polygons", "Render Video"]:
             self.menubar.add_command(label=label, command=lambda l=label: self.menubar_cmds[l]())
 
         # Create toolbar
@@ -159,5 +159,5 @@ class GUI:
         print(icon)
 
     def on_closing(self):
-        self.driver.keyframes_handler.write()
+        self.driver.tracked_polygons_handler.write()
         self.root.destroy()

@@ -1,5 +1,5 @@
 from GUI.gui import GUI
-from keyframeshandler import KeyframesHandler
+from tracked_polygons_handler import TrackedPolygonsHandler
 from video_vectorizer import VideoTracer
 from polygons_handler import PolygonsHandler
 import cv2
@@ -49,7 +49,7 @@ class Driver:
             self.vid_frame_count,
         )
 
-        self.keyframes_handler = KeyframesHandler(
+        self.tracked_polygons_handler = TrackedPolygonsHandler(
             self.folder_path
         )
 
@@ -96,9 +96,9 @@ class Driver:
 
     def show_image(self):
         # Gets frame data and draws polygons to screen
-        self.keyframes_handler.read()
+        self.tracked_polygons_handler.read()
         self.polygons_handler.read(self.frame)
-        tracked_poly_data_dict = self.keyframes_handler.get_tracked_poly_data_dict(self.frame)
+        tracked_poly_data_dict = self.tracked_polygons_handler.get_tracked_poly_data_dict(self.frame)
         self.gui.draw_polygons(self.polygons_handler.polygons, tracked_poly_data_dict)
 
     def trace_video(self, *args):
@@ -165,17 +165,17 @@ class Driver:
     def clear_frames(self, s_frame, e_frame):
         result = messagebox.askyesno("Reset All", "Are you sure?\nThere is no way to undo this", icon='warning')
         if result:
-            self.keyframes_handler.clear_keyframes_in_range(s_frame, e_frame)
+            self.tracked_polygons_handler.clear_tracked_polygons_in_range(s_frame, e_frame)
             self.polygons_handler.set_polygons_white_in_range(s_frame, e_frame)
             self.show_image()
 
-    def gen_keyframes(self):
-        self.keyframes_handler.generate_keyframes(self.min_frame, self.max_frame, self.polygons_handler)
-        self.keyframes_handler.write()
+    def gen_tracked_polygons(self):
+        self.tracked_polygons_handler.generate_tracked_polygons(self.min_frame, self.max_frame, self.polygons_handler)
+        self.tracked_polygons_handler.write()
         self.show_image()
 
     def save(self):
-        self.keyframes_handler.write()
+        self.tracked_polygons_handler.write()
 
 
 if __name__ == '__main__':
