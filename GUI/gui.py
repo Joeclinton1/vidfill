@@ -1,6 +1,7 @@
 from GUI.popup import Popup
 from GUI.interactive_polygon import InteractiveTimePositionedPolygon
 from GUI.toolbar_btn import ToolbarButton
+from GUI.point_path import PointPath
 from tkinter import *
 from tkinter import Tk
 from tkinter import Canvas
@@ -30,16 +31,9 @@ class GUI:
             icon_name = filename.split('.')[0]
             self.icons[icon_name] = PhotoImage(file="./GUI/icons/" + filename)
 
-        # Init frame variables
-        self.frame_num_entry = None
-
         # init object dictionaries
         self.i_polygons = {}
-        self.toolbar_btns = {}
-        self.keyframe_paths = {}
-
-        # Run setup
-        self.setup()
+        self.point_paths = {}
         self.toolbar_btns = {}
 
         # Menubar commands
@@ -52,12 +46,22 @@ class GUI:
             "Render Video": self.popup.convert_to_video
         }
 
+        # other variables
+        self.frame_num_entry = None
+        self.active_tracked_poly_id = None
+        self.is_touching_point = False
+
+        # Run setup
+        self.setup()
+        self.toolbar_btns = {}
+
     def setup(self):
         self.root.geometry("%dx%d+0+0" % (self.s_width, self.s_height))
 
         # Create menu
         self.menubar = Menu(self.root)
-        for label in ["Save", "Print tracked_polygons", "Clear Frames", "Trace Video", "Generate tracked_polygons", "Render Video"]:
+        for label in ["Save", "Print tracked_polygons", "Clear Frames", "Trace Video", "Generate tracked_polygons",
+                      "Render Video"]:
             self.menubar.add_command(label=label, command=lambda l=label: self.menubar_cmds[l]())
 
         # Create toolbar
@@ -91,8 +95,8 @@ class GUI:
         self.frame_num_entry.pack(side=LEFT, padx=10)
         Button(timeline, image=self.icons['rArrow'], command=self.driver.next_frame).pack(side=LEFT)
         timeline.pack(pady=5)
-        self.root.bind('<Left>', lambda e:self.driver.prev_frame())
-        self.root.bind('<Right>', lambda e:self.driver.next_frame())
+        self.root.bind('<Left>', lambda e: self.driver.prev_frame())
+        self.root.bind('<Right>', lambda e: self.driver.next_frame())
 
         dialogRoot = Toplevel()
         dialogRoot.geometry("%dx%d%+d%+d" % (50, 50, self.s_width / 2 - 300, self.s_height / 2 - 200))
@@ -114,13 +118,33 @@ class GUI:
     def tk_polygon_from_cnt(cnt):
         return [item for sublist in cnt for item in sublist]
 
-    def draw_polygons(self, polygons, tracked_poly_data_dict):
-        # Free up memory by deleting old polygons
-        active_tracked_poly_id = None
-        for id, i_poly in self.i_polygons.items():
-            if i_poly.active:
-                active_tracked_poly_id = id
+    def draw(self, polygons, tracked_poly_data):
         self.canvas.delete("all")
+        self.create_point_paths(tracked_poly_data)
+        self.create_polygons(polygons, tracked_poly_data)
+        for point_path in self.point_paths.values():
+            point_path.bring_to_front()
+
+    def create_point_paths(self, tracked_poly_data):
+        # Free up memory by deleting old point paths
+        for point_path in self.point_paths:
+            del point_path
+        self.point_paths = {}
+
+        # Create new point paths
+        for id, tracked_poly in tracked_poly_data.items():
+            scaled_pts = [[self.scale * val for val in pt] for pt in tracked_poly.path_points]
+            point_path = PointPath(
+                id=id,
+                gui=self,
+                points_coords=scaled_pts,
+            )
+            point_path.hide()
+
+            self.point_paths[id] = point_path
+
+    def create_polygons(self, polygons, tracked_poly_data):
+        # Free up memory by deleting old polygons
         for i_polygon in self.i_polygons:
             del i_polygon
         self.i_polygons = {}
@@ -128,23 +152,23 @@ class GUI:
         # Create new polygons
         for cnt_id, polygon in polygons.items():
             tk_polygon = self.tk_polygon_from_cnt(polygon.cnt)
-            scaled_tk_polygon= [self.scale * pt for pt in tk_polygon]
+            scaled_tk_polygon = [self.scale * pt for pt in tk_polygon]
 
-            if cnt_id in tracked_poly_data_dict:
-                time_pos = tracked_poly_data_dict[cnt_id].temporal_label
-                tracked_poly_id = tracked_poly_data_dict[cnt_id].tracked_poly_id
+            if cnt_id in tracked_poly_data:
+                time_pos = tracked_poly_data[cnt_id].temporal_label
+                tracked_poly_id = tracked_poly_data[cnt_id].tracked_poly_id
             else:
                 time_pos = None
                 tracked_poly_id = None
 
-
             i_polygon = InteractiveTimePositionedPolygon(
                 id=tracked_poly_id,
                 gui=self,
-                active=active_tracked_poly_id is not None and active_tracked_poly_id == tracked_poly_id,
+                active=self.active_tracked_poly_id is not None and self.active_tracked_poly_id == tracked_poly_id,
                 vertices=scaled_tk_polygon,
                 time_pos=time_pos,
-                fill= polygon.fill,
+                point_path=self.point_paths[tracked_poly_id],
+                fill=polygon.fill,
                 outline='#000000'
             )
 
@@ -153,10 +177,6 @@ class GUI:
     def update_frame_num_entry(self, frame):
         self.frame_num_entry.delete(0, END)
         self.frame_num_entry.insert(0, frame)
-
-    def changeTool(self, icon):
-        self.current_tool = icon
-        print(icon)
 
     def on_closing(self):
         self.driver.tracked_polygons_handler.write()

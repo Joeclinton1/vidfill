@@ -86,7 +86,9 @@ class Driver:
         self.tracked_polygons_handler.read()
         self.polygons_handler.read(self.frame)
         tracked_poly_data_dict = self.tracked_polygons_handler.get_tracked_poly_data_dict(self.frame)
-        self.gui.draw_polygons(self.polygons_handler.polygons, tracked_poly_data_dict)
+
+        # Draw objects on gui
+        self.gui.draw(self.polygons_handler.polygons, tracked_poly_data_dict)
 
     def trace_video(self, *args):
         self.video_tracer.trace(*args)
