@@ -30,19 +30,33 @@ class Driver:
         self.vid_frame_count = 0
         self.rootDir = ""
         self.folder_path = ""
-        self.keyframes_handler = None
         self.gui = None
-        self.video_tracer = None
-        self.polygons_handler = None
         self.min_frame = None
         self.max_frame = None
         self.current_tool = None
+
+        # create object instances
+        self.polygons_handler = PolygonsHandler(
+            self.folder_path,
+            self.vid_width,
+            self.vid_height
+        )
+
+        self.video_tracer = VideoTracer(
+            self.folder_path,
+            self.vid_cap,
+            (self.vid_width, self.vid_height),
+            self.vid_frame_count,
+        )
+
+        self.keyframes_handler = KeyframesHandler(
+            self.folder_path
+        )
 
     def setup(self):
         self.init_video()
         self.create_data_folder()
         self.create_frames_folder()
-        self.init_classes()
         self.gui = GUI(self)
 
         if self.min_frame is not None:
@@ -85,25 +99,7 @@ class Driver:
         self.keyframes_handler.read()
         self.polygons_handler.read(self.frame)
         tracked_poly_data_dict = self.keyframes_handler.get_tracked_poly_data_dict(self.frame)
-        self.gui.draw_contours(self.polygons_handler.tk_polygons, tracked_poly_data_dict)
-
-    def init_classes(self):
-        self.keyframes_handler = KeyframesHandler(
-            self.folder_path
-        )
-
-        self.polygons_handler = PolygonsHandler(
-            self.folder_path,
-            self.vid_width,
-            self.vid_height
-        )
-        self.video_tracer = VideoTracer(
-            self.folder_path,
-            self.vid_cap,
-            (self.vid_width, self.vid_height),
-            self.vid_frame_count,
-            self.polygons_handler.write_new
-        )
+        self.gui.draw_polygons(self.polygons_handler.polygons, tracked_poly_data_dict)
 
     def trace_video(self, *args):
         self.video_tracer.trace(*args)
@@ -180,6 +176,7 @@ class Driver:
 
     def save(self):
         self.keyframes_handler.write()
+
 
 if __name__ == '__main__':
     vid_filepath = r"C:\Users\Joe\OneDrive\Documents\youtube\Asdf12_full\asdfmovie12.mp4"

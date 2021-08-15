@@ -110,6 +110,10 @@ class GUI:
     def start(self):
         self.root.mainloop()
 
+    @staticmethod
+    def tk_polygon_from_cnt(cnt):
+        return [item for sublist in cnt for item in sublist]
+
     def draw_polygons(self, polygons, tracked_poly_data_dict):
         # Free up memory by deleting old polygons
         active_tracked_poly_id = None
@@ -122,22 +126,25 @@ class GUI:
         self.i_polygons = {}
 
         # Create new polygons
-        for cnt_id, polygon, fill in polygons:
+        for cnt_id, polygon in polygons.items():
+            tk_polygon = self.tk_polygon_from_cnt(polygon.cnt)
+            scaled_tk_polygon= [self.scale * pt for pt in tk_polygon]
+
             if cnt_id in tracked_poly_data_dict:
                 time_pos = tracked_poly_data_dict[cnt_id].temporal_label
                 tracked_poly_id = tracked_poly_data_dict[cnt_id].tracked_poly_id
             else:
                 time_pos = None
                 tracked_poly_id = None
-            scaled_pts = [self.scale * pt for pt in polygon]
+
 
             i_polygon = InteractiveTimePositionedPolygon(
                 id=tracked_poly_id,
                 gui=self,
                 active=active_tracked_poly_id is not None and active_tracked_poly_id == tracked_poly_id,
-                vertices=scaled_pts,
+                vertices=scaled_tk_polygon,
                 time_pos=time_pos,
-                fill="#" + fill,
+                fill= polygon.fill,
                 outline='#000000'
             )
 

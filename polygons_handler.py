@@ -11,7 +11,6 @@ from polygon import Polygon
 class PolygonsHandler:
     def __init__(self, folder_path, vid_w=0, vid_h=0):
         self.polygons = {}  # polygons dict of polygons: polygons[i] -> {points: <list>, fill:<str>}
-        self.tk_polygons = []
         self.vid_w = vid_w
         self.vid_h = vid_h
         self.folder_path = folder_path
@@ -54,7 +53,6 @@ class PolygonsHandler:
 
     def read(self, frame):
         self.polygons = {}
-        self.tk_polygons = []
         tree = ET.parse(self.folder_path + "/frame%d.svg" % frame)
         for path in tree.iterfind("//{http://www.w3.org/2000/svg}path"):
             path_points = path.get("d")[1:].split(",")
@@ -63,7 +61,6 @@ class PolygonsHandler:
             for i, s in enumerate(path_points):
                 path_points[i] = list(map(int, s.split()))
 
-            self.tk_polygons.append((id, [item for sublist in path_points for item in sublist], fill))
             self.polygons[id] = Polygon(
                 cnt=np.array(path_points),
                 fill= "#" + fill
