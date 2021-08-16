@@ -150,16 +150,19 @@ class GUI:
         self.i_polygons = {}
 
         # Create new polygons
-        for cnt_id, polygon in polygons.items():
+        for id, polygon in polygons.items():
             tk_polygon = self.tk_polygon_from_cnt(polygon.cnt)
             scaled_tk_polygon = [self.scale * pt for pt in tk_polygon]
 
-            if cnt_id in tracked_poly_data:
-                time_pos = tracked_poly_data[cnt_id].temporal_label
-                tracked_poly_id = tracked_poly_data[cnt_id].tracked_poly_id
+            if id in tracked_poly_data:
+                data_object = tracked_poly_data[id]
+                time_pos = data_object.temporal_label
+                tracked_poly_id = data_object.tracked_poly_id
+                point_path = self.point_paths[id]
             else:
                 time_pos = None
                 tracked_poly_id = None
+                point_path = None
 
             i_polygon = InteractiveTimePositionedPolygon(
                 id=tracked_poly_id,
@@ -167,7 +170,7 @@ class GUI:
                 active=self.active_tracked_poly_id is not None and self.active_tracked_poly_id == tracked_poly_id,
                 vertices=scaled_tk_polygon,
                 time_pos=time_pos,
-                point_path=self.point_paths[tracked_poly_id],
+                point_path=point_path,
                 fill=polygon.fill,
                 outline='#000000'
             )

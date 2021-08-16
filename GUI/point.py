@@ -1,3 +1,6 @@
+import time
+
+
 class Point:
     def __init__(self, gui, x, y, fill):
         self.gui = gui

@@ -1,3 +1,4 @@
+import time
 class InteractiveTimePositionedPolygon():
     def __init__(self, id, gui, active, vertices, time_pos, point_path, **kw):
         self.id = id
@@ -6,6 +7,7 @@ class InteractiveTimePositionedPolygon():
         self.master = gui.canvas
         self.tag = self.master.create_polygon(vertices, **kw)
         self.active = active
+        self.hovered = False
         self.point_path = point_path
 
         self.master.tag_bind(self.tag, "<Button-1>", self.on_click)
@@ -29,31 +31,40 @@ class InteractiveTimePositionedPolygon():
         self.master.itemconfig(self.tag, outline=colour, width=width)
 
     def on_click(self, e):
-        self.set_outline(self.active_outline_colour, 2)
-        self.active = True
-        self.gui.active_tracked_poly_id = self.id
-
+        self.set_active(True)
         # Set siblings to inactive
         for poly_id in self.gui.i_polygons:
             if poly_id != self.id:
-                poly = self.gui.i_polygons[poly_id]
-                poly.set_outline('#000000', 1)
-                poly.active = False
+                self.gui.i_polygons[poly_id].set_active(False)
 
     def on_enter(self, e):
-        if not self.active:
-            self.set_outline(self.active_outline_colour, 1)
-
-        # show point path
-        self.point_path.show()
+        self.set_hovered(True)
+        # set siblings to the unhovered state and hide point paths
+        for poly_id in self.gui.i_polygons:
+            if poly_id != self.id:
+                self.gui.i_polygons[poly_id].set_hovered(False)
 
     def on_leave(self, e):
-        if self.gui.is_touching_point:
-            print("left")
-            return
-        print("left 2")
-        if not self.active:
-            self.set_outline('#000000', 1)
+        pass
 
-        # hide point path
-        self.point_path.hide()
+    def set_hovered(self, state):
+        if state:
+            self.hovered = True
+            if not self.active:
+                self.set_outline(self.active_outline_colour, 1)
+            self.point_path.show()
+
+        else:
+            self.hovered = False
+            if not self.active:
+                self.set_outline('#000000', 1)
+            self.point_path.hide()
+
+    def set_active(self, state):
+        if state:
+            self.set_outline(self.active_outline_colour, 2)
+            self.active = True
+            self.gui.active_tracked_poly_id = self.id
+        else:
+            self.set_outline('#000000', 1)
+            self.active = False

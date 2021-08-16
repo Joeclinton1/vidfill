@@ -9,7 +9,7 @@ class PointPath:
         self.master = gui.canvas
         self.points_coords = points_coords
         self.time_pos_to_fill = {
-            'start':  '#00FF00',  # green
+            'start': '#00FF00',  # green
             'middle': '#FFA500',  # orange
             'end': '#FF0000'  # red
         }
@@ -58,4 +58,3 @@ class PointPath:
             point.bring_to_front()
         for path in self.paths_tags:
             self.master.tag_raise(path)
-
