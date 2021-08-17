@@ -4,8 +4,8 @@ import numpy as np
 import re
 import math
 import copy
-from ML.contour_matching.polygon_matcher import PolygonMatcher
-from polygon import Polygon
+from src.ml.contour_matching.polygon_matcher import PolygonMatcher
+from src.core.polygon import Polygon
 
 
 class PolygonsHandler:

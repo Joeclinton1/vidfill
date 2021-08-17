@@ -1,4 +1,5 @@
 import glob
+import os
 
 def str2list(str):
     return [None if x == "None" else int(x) for x in str.split()]

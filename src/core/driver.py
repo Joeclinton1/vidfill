@@ -1,7 +1,7 @@
-from GUI.gui import GUI
-from tracked_polygons_handler import TrackedPolygonsHandler
-from video_vectorizer import VideoTracer
-from polygons_handler import PolygonsHandler
+from src.gui.gui import GUI
+from src.core.tracked_polygons_handler import TrackedPolygonsHandler
+from src.core.video_vectorizer import VideoTracer
+from src.core.polygons_handler import PolygonsHandler
 import cv2
 import glob
 from tkinter import messagebox
@@ -9,7 +9,7 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 import os
 import re
-from util import get_min_max_frame
+from src.util import get_min_max_frame
 
 
 class Driver:
@@ -63,7 +63,7 @@ class Driver:
 
     def get_folder_path(self):
         # If data folder doesn't exist create it
-        rootDir = "./data/%s" % self.project_name
+        rootDir = "../../data/%s" % self.project_name
         if not os.path.exists(rootDir):
             os.makedirs(rootDir)
 

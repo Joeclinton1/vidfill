@@ -1,4 +1,4 @@
-from GUI.point import Point
+from src.gui.point import Point
 
 
 class PointPath:

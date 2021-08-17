@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-from polygons_handler import PolygonsHandler
-from polygon import Polygon
+from src.core.polygons_handler import PolygonsHandler
+from src.core.polygon import Polygon
 
 kernel = np.ones((3, 3), np.uint8)
 kernel2 = np.ones((11, 11), np.uint8)

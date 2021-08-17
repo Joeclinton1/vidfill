@@ -1,11 +1,12 @@
-from GUI.popup import Popup
-from GUI.interactive_polygon import InteractiveTimePositionedPolygon
-from GUI.toolbar_btn import ToolbarButton
-from GUI.point_path import PointPath
+from src.gui.popup import Popup
+from src.gui.interactive_polygon import InteractiveTimePositionedPolygon
+from src.gui.toolbar_btn import ToolbarButton
+from src.gui.point_path import PointPath
 from tkinter import *
 from tkinter import Tk
 from tkinter import Canvas
 import os
+import pathlib
 
 
 class GUI:
@@ -13,7 +14,7 @@ class GUI:
         # Create driver reference
         self.driver = driver
 
-        # Init GUI roots
+        # Init gui roots
         self.root = Tk()
         self.menubar = None
         self.popup = Popup(self.root, self)
@@ -27,9 +28,10 @@ class GUI:
 
         # Setup icons dictionary
         self.icons = {}
-        for filename in os.listdir("./GUI/icons"):
+        icon_path = pathlib.Path(__file__).parent / 'icons'
+        for filename in os.listdir(icon_path):
             icon_name = filename.split('.')[0]
-            self.icons[icon_name] = PhotoImage(file="./GUI/icons/" + filename)
+            self.icons[icon_name] = PhotoImage(file="%s/%s" % (icon_path, filename))
 
         # init object dictionaries
         self.i_polygons = {}

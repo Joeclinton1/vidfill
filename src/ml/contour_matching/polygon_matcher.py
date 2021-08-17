@@ -4,7 +4,7 @@ from joblib import load
 
 class PolygonMatcher:
     def __init__(self, max_dist):
-        self.knn = load("ML/contour_matching/contour_matcher_knn.joblib")
+        self.knn = load("../ml/contour_matching/contour_matcher_knn.joblib")
         self.max_dist = max_dist
 
     def normalise(self, shape_sim, ratio_area, dist):

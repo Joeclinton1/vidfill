@@ -1,8 +1,8 @@
 from lxml import etree as ET
 import math
-from polygons_handler import PolygonsHandler
+from src.core.polygons_handler import PolygonsHandler
 import glob
-from util import get_min_max_frame
+from src.util import get_min_max_frame
 import json
 
 """
