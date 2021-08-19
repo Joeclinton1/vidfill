@@ -96,11 +96,10 @@ class TrackedPolygonsHandler:
         tree = ET.parse(self.folder + "/tracked_polygons.xml")
         for tracked_poly in tree.iterfind("//tracked_poly"):
             tracked_poly_id = int(tracked_poly.get('tracked_poly_id'))
-            keyframe_attributes = {key: json.loads(val) for key, val in tracked_poly.items() if
+            tracked_poly_attributes = {key: json.loads(val) for key, val in tracked_poly.items() if
                                    key != 'tracked_poly_id'}
-            keyframe = TrackedPolygon(**keyframe_attributes)
-
-            self.tracked_polygons[tracked_poly_id] = keyframe
+            tracked_poly = TrackedPolygon(**tracked_poly_attributes)
+            self.tracked_polygons[tracked_poly_id] = tracked_poly
 
     def clear_tracked_polygons_in_range(self, s_frame, e_frame):
         self.tracked_polygons = list(
@@ -110,14 +109,14 @@ class TrackedPolygonsHandler:
 
     def get_id_to_tracked_polyid_dict(self, frame):  # cnt -> tracked_poly_id
         d = {}
-        for tracked_poly_id, keyframe in self.tracked_polygons.items():
-            range = keyframe.range
+        for tracked_poly_id, tracked_polygon in self.tracked_polygons.items():
+            range = tracked_polygon.range
             f_min = range[0]
-            f_max = math.inf if len(keyframe.range) == 1 else keyframe.range[1]
+            f_max = math.inf if len(tracked_polygon.range) == 1 else tracked_polygon.range[1]
 
             if f_min <= frame <= f_max:
                 # print(props["indices"], f_min, f_max, frame)
-                id = keyframe.indices[frame - f_min]
+                id = tracked_polygon.indices[frame - f_min]
                 d[id] = tracked_poly_id
         return d
 
@@ -132,15 +131,15 @@ class TrackedPolygonsHandler:
         id_to_tracked_polyid_dict = self.get_id_to_tracked_polyid_dict(frame)
         d = {}
         for id, tracked_poly_id in id_to_tracked_polyid_dict.items():
-            keyframe = self.tracked_polygons[tracked_poly_id]
-            f_min = keyframe.range[0]
-            f_max = math.inf if len(keyframe.range) == 1 else keyframe.range[1]
+            tracked_polygon = self.tracked_polygons[tracked_poly_id]
+            f_min = tracked_polygon.range[0]
+            f_max = math.inf if len(tracked_polygon.range) == 1 else tracked_polygon.range[1]
             d[id] = TrackedPolygonData(
                 tracked_poly_id=tracked_poly_id,
                 frame=frame,
                 start=f_min,
                 end=f_max,
-                path_points=keyframe.path_points
+                path_points=tracked_polygon.path_points
             )
         return d
 
@@ -151,7 +150,7 @@ class TrackedPolygonsHandler:
         # Remove indexes from tracked_polygons after min_frame
         for tracked_poly_id, tracked_poly_obj in self.tracked_polygons.items():
             min_range, max_range = tracked_poly_obj.range
-            if min_range > min_frame and max_range < max_frame:
+            if min_range < min_frame < max_range:
                 self.tracked_polygons[tracked_poly_id].indices = tracked_poly_obj.indices[:min_frame - min_range + 1]
 
         # foreach frame match it's polygons with those from the frame before and extend self.tracked_polygons

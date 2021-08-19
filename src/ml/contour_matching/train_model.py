@@ -45,4 +45,4 @@ def train_decision_tree():
     dump(clf, clf_filepath)
 
 
-train_decision_tree()
+train_knn()
