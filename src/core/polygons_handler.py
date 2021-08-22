@@ -4,24 +4,19 @@ import numpy as np
 import re
 import math
 import copy
-from src.ml.contour_matching.polygon_matcher import PolygonMatcher
 from src.core.polygon import Polygon
+from src.ml.contour_matching.polygon_matcher import PolygonMatcher
 
 
 class PolygonsHandler:
-    def __init__(self, folder_path, vid_w=0, vid_h=0):
+    def __init__(self, driver):
+        self.driver = driver
         self.polygons = {}  # polygons dict of polygons: polygons[i] -> {points: <list>, fill:<str>}
-        self.vid_w = vid_w
-        self.vid_h = vid_h
-        self.folder_path = folder_path
-        self.max_dist = math.sqrt(self.vid_h ** 2 + self.vid_w ** 2)
-        self.polygon_matcher = PolygonMatcher(self.max_dist)
 
-    def write_new(self, is_mult, frame, polygons=None):
-        if polygons:
-            self.polygons = polygons
+    def write_new(self, is_mult, frame):
+        width, height = self.driver.vid_width, self.driver.vid_height
 
-        root = ET.Element("svg", width=str(self.vid_w), height=str(self.vid_h), xmlns="http://www.w3.org/2000/svg",
+        root = ET.Element("svg", width=str(width), height=str(height), xmlns="http://www.w3.org/2000/svg",
                           stroke="black")
         if is_mult:
             path = "M3 3,  3 717,1277  717,1277    3,4 3"
@@ -31,29 +26,27 @@ class PolygonsHandler:
             cnt = polygon.cnt
             approx = cv2.approxPolyDP(cnt, 0.6, False)
             cnt_as_list = np.vstack(approx).squeeze()
-            if len(approx) < 4 or (cv2.contourArea(approx) > self.vid_w * self.vid_h * 0.9 and is_mult):
+            if len(approx) < 4 or (cv2.contourArea(approx) > width* height * 0.9 and is_mult):
                 continue
             else:
                 path = "M" + re.sub('[\[\]]', '', ','.join(map(str, cnt_as_list)))
                 ET.SubElement(root, "path", id=str(id), style="fill:" + polygon.fill, d=path)
         tree = ET.ElementTree(root)
-        tree.write(self.folder_path + "/frame%d.svg" % frame)
+        tree.write(self.driver.folder_path + "/frame%d.svg" % frame)
 
-    def write(self, frame, polygons=None):
-        if polygons:
-            self.polygons = polygons
-
-        root = ET.Element("svg", width=str(self.vid_w), height=str(self.vid_h), xmlns="http://www.w3.org/2000/svg",
+    def write(self, frame):
+        width, height = self.driver.vid_width, self.driver.vid_height
+        root = ET.Element("svg", width=str(width), height=str(height), xmlns="http://www.w3.org/2000/svg",
                           stroke="black")
         for polygon in self.polygons.values():
             path = "M" + re.sub('[\[\]]', '', ','.join(map(str, polygon.cnt)))
             ET.SubElement(root, "path", style="fill:" + polygon.fill, d=path)
         tree = ET.ElementTree(root)
-        tree.write(self.folder_path + "/frame%d.svg" % frame)
+        tree.write(self.driver.folder_path + "/frame%d.svg" % frame)
 
     def read(self, frame):
         self.polygons = {}
-        tree = ET.parse(self.folder_path + "/frame%d.svg" % frame)
+        tree = ET.parse(self.driver.folder_path + "/frame%d.svg" % frame)
         for path in tree.iterfind("//{http://www.w3.org/2000/svg}path"):
             path_points = path.get("d")[1:].split(",")
             fill = path.get("style")[6:]
@@ -69,7 +62,7 @@ class PolygonsHandler:
 
     def set_polygons_white_in_range(self, s_frame, e_frame):
         for i in range(s_frame, e_frame + 1):
-            filepath = self.folder_path + "/frame%d.svg" % i
+            filepath = self.driver.folder_path + "/frame%d.svg" % i
             tree = ET.parse(filepath)
             for path in tree.iterfind("//{http://www.w3.org/2000/svg}path"):
                 path.attrib["style"] = "fill:#ffffff"
@@ -79,7 +72,7 @@ class PolygonsHandler:
         polygons_new_copy = copy.deepcopy(polygons_new)
         matches = {} # polygon id 1 -> matched polygon id 2
         for poly_id, polygon in polygons_prev.items():
-            prob, match_id = polygon.find_closest_match(polygons_new_copy, self.polygon_matcher)
+            prob, match_id = self.find_closest_match(polygon, polygons_new_copy)
             if prob > 0.5:
                 matches[poly_id] = match_id
                 del polygons_new_copy[match_id]
@@ -94,6 +87,25 @@ class PolygonsHandler:
         # unmatched_polygons: {polygon id => polygon}
 
         return matches, unmatched_polygons
+
+    def find_closest_match(self, polygon1, polygons):
+        max_dist = math.sqrt(self.driver.vid_height ** 2 + self.driver.vid_width ** 2)
+        polygon_matcher = PolygonMatcher(max_dist)
+        polygon_variables = []
+        for polygon_id, polygon2 in polygons.items():
+            polygon_variables.append({
+                "id":polygon_id,
+                "value": (
+                    polygon1.shape_sim(polygon2),
+                    polygon1.ratio_area(polygon2),
+                    polygon1.distance(polygon2)
+                )
+            })
+
+        input_x_values = [x["value"] for x in polygon_variables]
+        index, prob = polygon_matcher.predict_closest_match(input_x_values)
+        closest_match_id = polygon_variables[index]["id"]
+        return prob, closest_match_id
 
     def closest_polygon_to_point(self, point):
         closest = (None, math.inf)

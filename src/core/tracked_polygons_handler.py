@@ -51,8 +51,8 @@ class TrackedPolygonData(object):
 
 
 class TrackedPolygonsHandler:
-    def __init__(self, folder):
-        self.folder = folder
+    def __init__(self, driver):
+        self.driver = driver
         self.tracked_polygons = {}
 
         try:
@@ -63,10 +63,10 @@ class TrackedPolygonsHandler:
             self.create_tracked_polygons_file()
 
     def create_tracked_polygons_file(self):
-        min_frame = get_min_max_frame(self.folder)[0]
+        min_frame = get_min_max_frame(self.driver.folder_path)[0]
         # generate dict of tracked_polygons objects for first frame
         tracked_polygons = {}
-        polygons_handler = PolygonsHandler(self.folder)
+        polygons_handler = PolygonsHandler(self.driver)
         polygons = polygons_handler.read(1)
         for polygon_id, polygon in polygons.items():
             tracked_polygons[polygon_id] = TrackedPolygon(
@@ -89,11 +89,11 @@ class TrackedPolygonsHandler:
             )
 
         tree = ET.ElementTree(root)
-        tree.write(self.folder + "/tracked_polygons.xml")
+        tree.write(self.driver.folder_path + "/tracked_polygons.xml")
 
     def read(self):
         self.tracked_polygons = {}
-        tree = ET.parse(self.folder + "/tracked_polygons.xml")
+        tree = ET.parse(self.driver.folder_path + "/tracked_polygons.xml")
         for tracked_poly in tree.iterfind("//tracked_poly"):
             tracked_poly_id = int(tracked_poly.get('tracked_poly_id'))
             tracked_poly_attributes = {key: json.loads(val) for key, val in tracked_poly.items() if

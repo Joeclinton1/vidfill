@@ -9,11 +9,12 @@ kernel3 = np.ones((1, 1), np.uint8)
 
 
 class VideoTracer:
-    def __init__(self, folder_path, vid_cap, vid_size, num_frames):
+    def __init__(self, folder_path, vid_cap, vid_size, num_frames, polygons_handler):
         self.folder_path = folder_path
         self.vid_cap = vid_cap
         self.vid_size = vid_size
         self.num_frames = num_frames
+        self.polygons_handler = polygons_handler
 
     def img2ContoursThresh(self, filepathBMP, threshvalue):
         img = cv2.imread(filepathBMP)
@@ -50,33 +51,28 @@ class VideoTracer:
 
         return sorted(contours, key=cv2.contourArea, reverse=True)
 
-    def trace(self, scan_type,start, end, *args):
+    def trace(self, scan_type,start, end, **kwargs):
         if not start:
             start = 0
         if not end:
             end = self.num_frames-1
         print(start, end)
-        args = [int(arg) for arg in args]
         # Validate trace options
-        print(scan_type, args)
+        print(scan_type, **kwargs)
         if scan_type == "single":
-            min_thresh = args[0]
+            min_thresh = kwargs["min_thresh"]
             if min_thresh > 255 or min_thresh < 0:
                 print("Minimum thresh value not in range 0 -> 255")
                 return
         else:
-            num_scans = args[0]
-            offset_initial = args[1]
+            num_scans = kwargs["num_scans"]
+            offset_initial = kwargs["offset_initial_scan"]
             if num_scans > 15 or num_scans < 2:
                 print("Minimum thresh value not in range 0 -> 255")
                 return
             if offset_initial < 0 or offset_initial > 100:
                 print("Initial offset value not in range 0 -> 100")
                 return
-
-        # create instance of polygon handler
-        width, height = self.vid_size
-        polygon_handler = PolygonsHandler(self.folder_path, width, height)
 
         # Trace each frame in video
         for frame in range(int(start), int(end) + 1):
@@ -86,10 +82,15 @@ class VideoTracer:
             filepathJPG = self.folder_path + "/frame%d.jpg" % frame
             cv2.imwrite(filepathJPG, frame)
             if scan_type == "single":
-                contours = self.img2ContoursThresh(filepathJPG, *args)
-                polygons = map(lambda cnt:Polygon(cnt, "#ffffff"), contours)
-                polygon_handler.write(False, frame, polygons)
+                contours = self.img2ContoursThresh(filepathJPG, kwargs["min_thresh"])
+                self.polygons_handler.polygons = map(lambda cnt:Polygon(cnt, "#ffffff"), contours)
+                self.polygons_handler.write_new(False, frame)
             else:
-                contours = self.img2ContoursMult(filepathJPG, *args)
-                polygons = map(lambda cnt: Polygon(cnt, "#ffffff"), contours)
-                polygon_handler.write(False, frame, polygons)
+                contours = self.img2ContoursMult(
+                    filepathJPG,
+                    kwargs["num_scans"],
+                    kwargs["offset_initial_scan"],
+                    kwargs["offset_final_scan"]
+                )
+                self.polygons_handler.polygons = map(lambda cnt: Polygon(cnt, "#ffffff"), contours)
+                self.polygons_handler.write_new(True, frame)

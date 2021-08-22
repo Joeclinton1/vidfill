@@ -1,6 +1,6 @@
 from src.gui.gui import GUI
 from src.core.tracked_polygons_handler import TrackedPolygonsHandler
-from src.core.video_vectorizer import VideoTracer
+from src.core.video_tracer import VideoTracer
 from src.core.polygons_handler import PolygonsHandler
 import cv2
 import glob
@@ -10,7 +10,6 @@ from reportlab.graphics import renderPM
 import os
 import re
 from src.util import get_min_max_frame
-
 
 class Driver:
     def __init__(self, vid_filepath, project_name):
@@ -26,21 +25,15 @@ class Driver:
         self.rootDir, self.folder_path = self.get_folder_path()
 
         # Create object instances
-        self.polygons_handler = PolygonsHandler(
-            self.folder_path,
-            self.vid_width,
-            self.vid_height
-        )
+        self.polygons_handler = PolygonsHandler(self)
+        self.tracked_polygons_handler = TrackedPolygonsHandler(self)
 
         self.video_tracer = VideoTracer(
             self.folder_path,
             self.vid_cap,
             (self.vid_width, self.vid_height),
             self.vid_frame_count,
-        )
-
-        self.tracked_polygons_handler = TrackedPolygonsHandler(
-            self.folder_path
+            self.polygons_handler
         )
 
         # Initialise other variables
@@ -90,8 +83,9 @@ class Driver:
         # Draw objects on gui
         self.gui.draw(self.polygons_handler.polygons, tracked_poly_data_dict)
 
-    def trace_video(self, *args):
-        self.video_tracer.trace(*args)
+    def trace_video(self, **kwargs):
+
+        self.video_tracer.trace(kwargs["scan_type"],kwargs["start"], kwargs["end"])
         self.min_frame = int(args[1])
         self.max_frame = int(args[2])
         self.frame = self.min_frame

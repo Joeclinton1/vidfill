@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import math
 
-
 def center(cnt):
     M = cv2.moments(cnt)
     x = int(M["m10"] / M["m00"])
@@ -44,23 +43,6 @@ class Polygon:
                     isCloser = True
             dist = newDist
         return False
-
-    def find_closest_match(self, polygons, polygon_matcher):
-        polygon_variables = []
-        for polygon_id, polygon in polygons.items():
-            polygon_variables.append({
-                "id":polygon_id,
-                "value": (
-                    self.shape_sim(polygon),
-                    self.ratio_area(polygon),
-                    self.distance(polygon)
-                )
-            })
-
-        input_x_values = [x["value"] for x in polygon_variables]
-        index, prob = polygon_matcher.predict_closest_match(input_x_values)
-        closest_match_id = polygon_variables[index]["id"]
-        return prob, closest_match_id
 
     def is_point_inside(self, point):
         return cv2.pointPolygonTest(self.cnt, point, measureDist=False) == 1

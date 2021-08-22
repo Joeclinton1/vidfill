@@ -51,17 +51,17 @@ class Popup:
         end = Entry(popup, width=50)
         end.pack()
 
-        scanType = StringVar()
-        scanType.set("single")
+        scan_type = StringVar()
+        scan_type.set("single")
 
         cmd_single = lambda: self.insert_trace_options("single", popup)
         cmd_mult = lambda: self.insert_trace_options("mult", popup)
-        Radiobutton(popup, text="Single Scan", variable=scanType, value="single", command=cmd_single).pack(anchor=W)
-        Radiobutton(popup, text="Multiple scans", variable=scanType, value="mult", command=cmd_mult).pack(anchor=W)
+        Radiobutton(popup, text="Single Scan", variable=scan_type, value="single", command=cmd_single).pack(anchor=W)
+        Radiobutton(popup, text="Multiple scans", variable=scan_type, value="mult", command=cmd_mult).pack(anchor=W)
         self.insert_trace_options("single", popup)
 
         cmd = lambda: self.popup_handler(popup.destroy, self.driver.trace_video(
-            scanType=scanType.get(),
+            scan_type=scan_type.get(),
             start=start.get(),
             end=end.get(),
             **{k: v.get() for k, v in self.trace_options.items()}
@@ -81,17 +81,17 @@ class Popup:
         self.trace_options = {}
         if type == "single":
             Message(frame, text="Min Threshold value", width=300).pack()
-            self.trace_options["min threshold"] = create_entry(frame, width=10, initial_value="7")
+            self.trace_options["min_threshold"] = create_entry(frame, width=10, initial_value="7")
 
         elif type == "mult":
             Message(frame, text="Number of scans", width=300).pack()
-            self.trace_options["num scans"] = create_entry(frame, width=15, initial_value="7")
+            self.trace_options["num_scans"] = create_entry(frame, width=15, initial_value="7")
 
             Message(frame, text="Offset of initial scan", width=300).pack()
-            self.trace_options["offset initial scan"] = create_entry(frame, width=8, initial_value="12")
+            self.trace_options["offset_initial_scan"] = create_entry(frame, width=8, initial_value="12")
 
             Message(frame, text="Offset of final scan", width=300).pack()
-            self.trace_options["offset final scan"] = create_entry(frame, width=8, initial_value="15")
+            self.trace_options["offset_final_scan"] = create_entry(frame, width=8, initial_value="15")
 
         frame.pack()
 

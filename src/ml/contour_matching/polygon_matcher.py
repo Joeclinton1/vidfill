@@ -2,7 +2,7 @@ import math
 from joblib import load
 
 
-class PolygonMatcher:
+class PolygonMatcher():
     def __init__(self, max_dist):
         self.knn = load("../ml/contour_matching/contour_matcher_knn.joblib")
         self.max_dist = max_dist
